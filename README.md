@@ -1,3 +1,9 @@
+
+# pre-requisites
+
+```bash
+sudo apt install libelf-dev libbpf-dev libseccomp-dev
+```
 # CTESTER-EBPF
 CTester implementation with eBPF 
 

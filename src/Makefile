@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 OUTPUT := .output
+OUTPUT2 := ../libbpf/src/.output
 CLANG ?= clang
 LLVM_STRIP ?= llvm-strip
 BPFTOOL ?= ../tools/bpftool
 LIBBPF_SRC := ../libbpf/src
-LIBBPF_OBJ := $(OUTPUT)/libbpf.a
+LIBBPF_OBJ := $(OUTPUT2)/libbpf.a
 # Use our own libbpf API headers and Linux UAPI headers distributed with
 # libbpf to avoid dependency on system-wide headers, which could be missing or
 # outdated
