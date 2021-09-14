@@ -12,15 +12,40 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_helpers.h>
+#include "ctester.h"
 
 // LICENSE DUAL BSD & GPL
 char __license [] SEC("license") = "Dual BSD/GPL";
 
-static __always_inline process_t* get_process_by_pid(u32 pid)
-{
-    process_t* p = NULL;
-    p = bpf_map_lookup_elem(&process_map,&pid);
-    return p;
+struct {
+  bool monitored;
+  __u32 prog_pid;
+  bool getpid;
+  bool monitoring_open;
+  bool monitoring_creat;
+  bool monitoring_close;
+  bool monitoring_read;
+  bool monitoring_write;
+  bool monitoring_stat;
+  bool monitoring_fstat;
+  bool monitoring_lseek;
+  bool monitoring_free;
+  bool monitoring_malloc;
+  bool monitoring_calloc;
+  bool monitoring_realloc;
+  bool monitoring_sleep;
+  bool start_student_code;
+  bool end_student_code;
+}ctester_cfg = {};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_RINGBUF);
+	__uint(max_entries, 256 * 1024);
+} rb SEC(".maps");
+
+static __always_inline process_t* get_process_by_pid(u32 pid){
+    return bpf_map_lookup_elem(&process_map,&pid);
+   
 }
 
 static __always_inline fs_wrap_stats_t* get__fs_wrap_stats__by_host_pid(u32 pid)
@@ -80,461 +105,250 @@ static __always_inline void monitoring_process_syscalls(process_t* p, u32 sys_fl
 /* tracepoint syscall hooks */
 
 SEC("tracepoint/syscalls/sys_enter_open")
-int BPF_PROG(do_open){
-
-    //struct pt_regs* regs = (struct pt_regs*)ctx;
-    // Look up the process using the current PID
-    u32 pid = bpf_get_current_pid_tgid();
-    process_t* process = get_process_by_pid(pid);
-    
-    // Untracked
-    if (!process || (process->monitoring == false)){
-        return -1;
-    }
-    
-    // Look up the fs_wrap_stats using the current ID
-    fs_wrap_stats_t* fs_wrap = get__fs_wrap_stats__by_host_pid(pid);
-    
-    // Don't monitoring open syscall
-    if (!fs_wrap || fs_wrap->monitor.monitoring_open == false)
-        return -1;
-    
-    struct syscall_enter_open_args* args = (struct syscall_enter_open_args*)ctx;
-    fs_wrap->open.last_params.flags = args->flags;
-    fs_wrap->open.last_params.pathname = (const char*)args->filename_ptr;
-    fs_wrap->open.last_params.mode = args->mode;
-    
-    lock_xadd(&fs_wrap->open.called,1);
-
+int tracepoint__syscalls__sys_enter_open(struct trace_event_raw_sys_enter* ctx){
+    struct event *e;
+    // Are we monitoring sysclose?
+    if(!ctester_cfg.monitored || !ctester_cfg.monitoring_open)
+       return 0;
+       
+    u64 id = (u64)bpf_get_current_pid_tgid();
+    u32 pid = id >> 32;
+    // Are we monitoring this process ?
+    if(!ctester_cfg.prog_pid || ctester_cfg.prog_pid!=pid)
+       return -1;
+       
+    e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+    if (!e)
+       return -1;
+    u32 uid = (u32)bpf_get_current_uid_gid();
+    e->type = SYS_ENTER_OPEN;
+    e->uid = uid;
+    e->pid = pid;
+    bpf_ringbuf_submit(e, 0);
     return 0;
 }
 
 SEC("tracepoint/syscalls/sys_exit_open")
-int BPF_PROG(do_open_exit){
-    //struct pt_regs* regs = (struct pt_regs*)ctx;
-    // Look up the process using the current PID
-    u32 pid = bpf_get_current_pid_tgid();
-    process_t* process = get_process_by_pid(pid);
-    
-    // Untracked
-    if (!process || (process->monitoring == false)){
-        return -1;
-    }
-    
-    // Look up the fs_wrap_stats using the current ID
-    fs_wrap_stats_t* fs_wrap = get__fs_wrap_stats__by_host_pid(pid);
-    
-    // Don't monitoring open syscall
-    if (!fs_wrap || fs_wrap->monitor.monitoring_open == false)
-        return -1;
-    
-    struct syscall_exit_open_args* args = (struct syscall_exit_open_args*)ctx;
-    fs_wrap->open.last_return = args->ret;
-
-    return 0;
-}
- 
-SEC("tracepoint/syscalls/sys_enter_close")
-int BPF_PROG(do_close){
-
-    //struct pt_regs* regs = (struct pt_regs*)ctx;
-    // Look up the process using the current PID
-    u32 pid = bpf_get_current_pid_tgid();
-    process_t* process = get_process_by_pid(pid);
-    
-    // Untracked
-    if (!process || (process->monitoring == false)){
-        return -1;
-    }
-    
-    // Look up the fs_wrap_stats using current PID
-    fs_wrap_stats_t* fs_wrap = get__fs_wrap_stats__by_host_pid(pid);
-    
-    if(!fs_wrap || fs_wrap->monitor.monitoring_close == false)
-        return -1;
-    
-    struct syscall_enter_close_args* args = (struct syscall_enter_close_args*)ctx;
-
-    fs_wrap->close.last_params.fd = args->fd;
-
-    lock_xadd(&fs_wrap->close.called,1);
-
-    return 0;
-}
-
-SEC("tracepoint/syscalls/sys_exit_close")
-int BPF_PROG(do_close_exit){
-        //struct pt_regs* regs = (struct pt_regs*)ctx;
-    // Look up the process using the current PID
-    u32 pid = bpf_get_current_pid_tgid();
-    process_t* process = get_process_by_pid(pid);
-    
-    // Untracked
-    if (!process || (process->monitoring == false)){
-        return -1;
-    }
-    
-    // Look up the fs_wrap_stats using the current ID
-    fs_wrap_stats_t* fs_wrap = get__fs_wrap_stats__by_host_pid(pid);
-    
-    // Don't monitoring open syscall
-    if (!fs_wrap || fs_wrap->monitor.monitoring_close == false)
-        return -1;
-
-    struct syscall_exit_close_args* args = (struct syscall_exit_close_args*)ctx;
-
-    fs_wrap->close.last_return = args->ret;
-
-    return 0;
-}
-
-
-SEC("tracepoint/syscalls/sys_enter_creat")
-int BPF_PROG(do_creat){
-
-    //struct pt_regs* regs = (struct pt_regs*)ctx;
-    // Look up the process using the current PID
-    u32 pid = bpf_get_current_pid_tgid();
-    process_t* process = get_process_by_pid(pid);
-    
-    // Untracked
-    if (!process || (process->monitoring == false)){
-        return -1;
-    }
-    
-    // Look up fs_wrap_stats using current PID
-    fs_wrap_stats_t* fs_wrap = get__fs_wrap_stats__by_host_pid(pid);
-
-    // Monitoring creat syscall desable
-    if(!fs_wrap || fs_wrap->monitor.monitoring_creat == false)
-        return -1;
-
-    struct syscall_enter_creat_args* args = (struct syscall_enter_creat_args*)ctx;
-
-    fs_wrap->creat.last_params.pathname = (const char*)args->filename_ptr;
-    fs_wrap->creat.last_params.mode = args->mode;
-
-    lock_xadd(&fs_wrap->creat.called,1);
-
-    return 0;
-}
-
-SEC("tracepoint/syscalls/sys_exit_creat")
-int BPF_PROG(do_creat_exit){
-
-    //struct pt_regs* regs = (struct pt_regs*)ctx;
-    // Look up the process using the current PID
-    u32 pid = bpf_get_current_pid_tgid();
-    process_t* process = get_process_by_pid(pid);
-    
-    // Untracked
-    if (!process || (process->monitoring == false)){
-        return -1;
-    }
-        
-    // Look up fs_wrap_stats using current PID
-    fs_wrap_stats_t* fs_wrap = get__fs_wrap_stats__by_host_pid(pid);
-
-    // Monitoring creat syscall desable
-    if(!fs_wrap || fs_wrap->monitor.monitoring_creat == false)
-        return -1;
-
-    struct syscall_exit_creat_args* args = (struct syscall_exit_creat_args*)ctx;
-
-    fs_wrap->creat.last_return = args->ret;
-
-    return 0;
-}
-
-SEC("tracepoint/syscalls/sys_enter_read")
-int BPF_PROG(do_read){
-
-    //struct pt_regs* regs = (struct pt_regs*)ctx;
-    // Look up the process using the current PID
-    u32 pid = bpf_get_current_pid_tgid();
-    process_t* process = get_process_by_pid(pid);
-    
-    // Untracked
-    if (!process || (process->monitoring == false)){
-        return -1;
-    }
-        
-    // Look up fs_wrap_stats using current PID
-    fs_wrap_stats_t* fs_wrap = get__fs_wrap_stats__by_host_pid(pid);
-
-    // Monitoring read syscall desable
-    if(!fs_wrap || fs_wrap->monitor.monitoring_read == false)
-        return -1;
-    
-    struct syscall_enter_read_args* args = (struct syscall_enter_read_args*)ctx;
-
-    fs_wrap->read.last_params.buf = (const char*)args->buf;
-    fs_wrap->read.last_params.count = args->count;
-    fs_wrap->read.last_params.fd = args->fd;
-     
-    lock_xadd(&fs_wrap->read.called,1);
-
-    return 0;
-}
-
-SEC("tracepoint/syscalls/sys_exit_read")
-int BPF_PROG(do_read_exit){
-    
-    //struct pt_regs* regs = (struct pt_regs*)ctx;
-    // Look up the process using the current PID
-    u32 pid = bpf_get_current_pid_tgid();
-    process_t* process = get_process_by_pid(pid);
-    
-    // Untracked
-    if (!process || (process->monitoring == false)){
-        return -1;
-    }
-    
-    // Look up fs_wrap_stats using current PID
-    fs_wrap_stats_t* fs_wrap = get__fs_wrap_stats__by_host_pid(pid);
-
-    // Monitoring read syscall desable
-    if(!fs_wrap || fs_wrap->monitor.monitoring_read == false)
-        return -1;
-
-    struct syscall_exit_read_args* args = (struct syscall_exit_read_args*)ctx;
-
-    fs_wrap->read.last_return = args->ret;
-
+int tracepoint__syscalls__sys_exit_open(struct trace_event_raw_sys_exit* ctx){
+    struct event *e;
+    // Are we monitoring sysclose?
+    if(!ctester_cfg.monitored || !ctester_cfg.monitoring_open)
+       return 0;
+       
+    u64 id = (u64)bpf_get_current_pid_tgid();
+    u32 pid = id >> 32;
+    // Are we monitoring this process ?
+    if(!ctester_cfg.prog_pid || ctester_cfg.prog_pid!=pid)
+       return -1;
+       
+    e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+    if (!e)
+       return -1;
+    u32 uid = (u32)bpf_get_current_uid_gid();
+    e->type = SYS_EXIT_OPEN;
+    e->uid = uid;
+    e->pid = pid;
+    bpf_ringbuf_submit(e, 0);
     return 0;
 }
 
 SEC("tracepoint/syscalls/sys_enter_write")
-int BPF_PROG(do_write){
-
-    //struct pt_regs* regs = (struct pt_regs*)ctx;
-    // Look up the process using the current PID
-    u32 pid = bpf_get_current_pid_tgid();
-    process_t* process = get_process_by_pid(pid);
+int tracepoint__syscalls__sys_enter_write(struct trace_event_raw_sys_enter* ctx)
+{
+    struct event *e;
     
-    // Untracked
-    if (!process || (process->monitoring == false)){
-        return -1;
-    }
-    
-    // Look up fs_wrap_stats using current PID
-    fs_wrap_stats_t* fs_wrap = get__fs_wrap_stats__by_host_pid(pid);
-
-    // Monitoring write syscall desable
-    if(!fs_wrap || fs_wrap->monitor.monitoring_write == false)
-        return -1;
-
-    struct syscall_enter_write_args* args = (struct syscall_enter_write_args*)ctx;
-
-    fs_wrap->write.last_params.buf = (const char*)args->buf;
-    fs_wrap->write.last_params.count = args->count;
-    fs_wrap->write.last_params.fd = args->fd;
-
-    lock_xadd(&fs_wrap->write.called,1);
-
+    // Are we monitoring sysclose?
+    if(!ctester_cfg.monitored || !ctester_cfg.monitoring_write)
+       return 0;
+       
+    u64 id = (u64)bpf_get_current_pid_tgid();
+    u32 pid = id >> 32;
+    // Are we monitoring this process ?
+    if(!ctester_cfg.prog_pid || ctester_cfg.prog_pid!=pid)
+       return -1;
+       
+    e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+    if (!e)
+       return -1;
+    u32 uid = (u32)bpf_get_current_uid_gid();
+    e->type = SYS_ENTER_WRITE;
+    e->uid = uid;
+    e->pid = pid;
+    bpf_ringbuf_submit(e, 0);
     return 0;
 }
 
 SEC("tracepoint/syscalls/sys_exit_write")
-int BPF_PROG(do_write_exit){
+int tracepoint__syscalls__sys_exit_write(struct trace_event_raw_sys_exit* ctx)
+{
+    struct event *e;
     
-    //struct pt_regs* regs = (struct pt_regs*)ctx;
-    // Look up the process using the current PID
-    u32 pid = bpf_get_current_pid_tgid();
-    process_t* process = get_process_by_pid(pid);
-    
-    // Untracked
-    if (!process || (process->monitoring == false)){
-        return -1;
-    }
-    
-    // Look up fs_wrap_stats using current PID
-    fs_wrap_stats_t* fs_wrap = get__fs_wrap_stats__by_host_pid(pid);
-
-    // Monitoring write syscall desable
-    if(!fs_wrap || fs_wrap->monitor.monitoring_write == false)
-        return -1;
-    
-    struct syscall_exit_write_args* args = (struct syscall_exit_write_args*)ctx;
-
-    fs_wrap->write.last_return = args->ret;
-
+    // Are we monitoring sysclose?
+    if(!ctester_cfg.monitored || !ctester_cfg.monitoring_write)
+       return 0;
+       
+    u64 id = (u64)bpf_get_current_pid_tgid();
+    u32 pid = id >> 32;
+    // Are we monitoring this process ?
+    if(!ctester_cfg.prog_pid || ctester_cfg.prog_pid!=pid)
+       return -1;
+       
+    e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+    if (!e)
+       return -1;
+    u32 uid = (u32)bpf_get_current_uid_gid();
+    e->type = SYS_EXIT_WRITE;
+    e->uid = uid;
+    e->pid = pid;
+    bpf_ringbuf_submit(e, 0);
     return 0;
 }
 
-
-SEC("tracepoint/syscalls/sys_enter_newstat")
-int BPF_PROG(do_newstat){
-
-    //struct pt_regs* regs = (struct pt_regs*)ctx;
-    // Look up the process using the current PID
-    u32 pid = bpf_get_current_pid_tgid();
-    process_t* process = get_process_by_pid(pid);
+SEC("tracepoint/syscalls/sys_enter_close")
+int tracepoint__syscalls__sys_enter_close(struct trace_event_raw_sys_enter* ctx){
+    struct event *e;
     
-    // Untracked
-    if (!process || (process->monitoring == false)){
-        return -1;
-    }
-    
-    // Look up fs_wrap_stats using current PID
-    fs_wrap_stats_t* fs_wrap = get__fs_wrap_stats__by_host_pid(pid);
-
-    // Monitoring stat syscall desable
-    if(!fs_wrap || fs_wrap->monitor.monitoring_stat == false)
-        return -1;
-    
-    struct syscall_enter_stat_args* args = (struct syscall_enter_stat_args*)ctx;
-
-    fs_wrap->stat.last_params.buf = (struct stat*)args->statbuf;
-    fs_wrap->stat.last_params.path = (const char*)args->filename_ptr;
-
-    lock_xadd(&fs_wrap->stat.called,1);
-
+    // Are we monitoring sysclose?
+    if(!ctester_cfg.monitored || !ctester_cfg.monitoring_close)
+       return 0;
+       
+    u64 id = (u64)bpf_get_current_pid_tgid();
+    u32 pid = id >> 32;
+    // Are we monitoring this process ?
+    if(!ctester_cfg.prog_pid || ctester_cfg.prog_pid!=pid)
+       return -1;
+       
+    e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+    if (!e)
+       return -1;
+    u32 uid = (u32)bpf_get_current_uid_gid();
+    e->type = SYS_ENTER_CLOSE;
+    e->uid = uid;
+    e->pid = pid;
+    bpf_ringbuf_submit(e, 0);
     return 0;
 }
 
-SEC("tracepoint/syscalls/sys_exit_newstat")
-int BPF_PROG(do_newstat_exit){
-
-    //struct pt_regs* regs = (struct pt_regs*)ctx;
-    // Look up the process using the current PID
-    u32 pid = bpf_get_current_pid_tgid();
-    process_t* process = get_process_by_pid(pid);
+SEC("tracepoint/syscalls/sys_exit_close")
+int tracepoint__syscalls__sys_exit_close(struct trace_event_raw_sys_exit* ctx){
+    struct event *e;
     
-    // Untracked
-    if (!process || (process->monitoring == false)){
-        return -1;
-    }
-    
-    // Look up fs_wrap_stats using current PID
-    fs_wrap_stats_t* fs_wrap = get__fs_wrap_stats__by_host_pid(pid);
-
-    // Monitoring stat syscall desable
-    if(!fs_wrap || fs_wrap->monitor.monitoring_stat == false)
-        return -1;
-
-    struct syscall_exit_stat_args* args = (struct syscall_exit_stat_args*)ctx;
-
-    fs_wrap->stat.last_return = args->ret;
-
-    return 0;   
-}
-
-SEC("tracepoint/syscalls/sys_enter_newfstat")
-int BPF_PROG(do_fstatfs){
-
-    //struct pt_regs* regs = (struct pt_regs*)ctx;
-    // Look up the process using the current PID
-    u32 pid = bpf_get_current_pid_tgid();
-    process_t* process = get_process_by_pid(pid);
-    
-    // Untracked
-    if (!process || (process->monitoring == false)){
-        return -1;
-    }
-    
-    // Look up fs_wrap_stats using current PID
-    fs_wrap_stats_t* fs_wrap = get__fs_wrap_stats__by_host_pid(pid);
-
-    // Monitoring fstat syscall desable
-    if(!fs_wrap || fs_wrap->monitor.monitoring_fstat == false)
-        return -1;
-
-    struct syscall_enter_fstat_args* args = (struct syscall_enter_fstat_args*)ctx;
-
-    fs_wrap->fstat.last_params.fd = args->fd;
-    fs_wrap->fstat.last_params.buf = (struct stat*)args->statbuf;
-
-    lock_xadd(&fs_wrap->fstat.called,1);
-
+    // Are we monitoring sysclose?
+    if(!ctester_cfg.monitored || !ctester_cfg.monitoring_close)
+       return 0;
+       
+    u64 id = (u64)bpf_get_current_pid_tgid();
+    u32 pid = id >> 32;
+    // Are we monitoring this process ?
+    if(!ctester_cfg.prog_pid || ctester_cfg.prog_pid!=pid)
+       return -1;
+       
+    e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+    if (!e)
+       return -1;
+    u32 uid = (u32)bpf_get_current_uid_gid();
+    e->type = SYS_EXIT_CLOSE;
+    e->uid = uid;
+    e->pid = pid;
+    bpf_ringbuf_submit(e, 0);
     return 0;
 }
 
-SEC("tracepoint/syscalls/sys_exit_newfstat")
-int BPF_PROG(do_exit_fstatfs){
-
-    //struct pt_regs* regs = (struct pt_regs*)ctx;
-    // Look up the process using the current PID
-    u32 pid = bpf_get_current_pid_tgid();
-    process_t* process = get_process_by_pid(pid);
-    
-    // Untracked
-    if (!process || (process->monitoring == false)){
-        return -1;
-    }
-    
-    // Look up fs_wrap_stats using current PID
-    fs_wrap_stats_t* fs_wrap = get__fs_wrap_stats__by_host_pid(pid);
-
-    // Monitoring fstat syscall desable
-    if(!fs_wrap || fs_wrap->monitor.monitoring_fstat == false)
-        return -1;
-
-    struct syscall_exit_fstat_args* args = (struct syscall_exit_fstat_args*)ctx;
-
-    fs_wrap->fstat.last_return = args->ret;
-
+SEC("tracepoint/syscalls/sys_enter_creat")
+int tracepoint__syscalls__sys_enter_creat(struct trace_event_raw_sys_enter* ctx){
+    struct event *e;
+    // Are we monitoring syscreat?
+    if(!ctester_cfg.monitored || !ctester_cfg.monitoring_creat)
+       return 0;
+       
+    u64 id = (u64)bpf_get_current_pid_tgid();
+    u32 pid = id >> 32;
+    // Are we monitoring this process ?
+    if(!ctester_cfg.prog_pid || ctester_cfg.prog_pid!=pid)
+       return -1;
+       
+    e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+    if (!e)
+       return -1;
+    u32 uid = (u32)bpf_get_current_uid_gid();
+    e->type = SYS_ENTER_CREAT;
+    e->uid = uid;
+    e->pid = pid;
+    bpf_ringbuf_submit(e, 0);
     return 0;
 }
 
-SEC("tracepoint/syscalls/sys_enter_lseek")
-int BPF_PROG(do_lseek){
-
-    //struct pt_regs* regs = (struct pt_regs*)ctx;
-    // Look up the process using the current PID
-    u32 pid = bpf_get_current_pid_tgid();
-    process_t* process = get_process_by_pid(pid);
-    
-    // Untracked
-    if (!process || (process->monitoring == false)){
-        return -1;
-    }
-    
-    // Look up fs_wrap_stats using current PID
-    fs_wrap_stats_t* fs_wrap = get__fs_wrap_stats__by_host_pid(pid);
-
-    // Monitoring lseek syscall desable
-    if(!fs_wrap || fs_wrap->monitor.monitoring_lseek == false)
-        return -1;
-    
-    struct syscall_enter_lseek_args* args = (struct syscall_enter_lseek_args*)ctx;
-
-    fs_wrap->lseek.last_params.fd = args->fd;
-    fs_wrap->lseek.last_params.offset = args->offset;
-    fs_wrap->lseek.last_params.whence = args->whence;
-
-    lock_xadd(&fs_wrap->lseek.called,1);
-
+SEC("tracepoint/syscalls/sys_exit_creat")
+int tracepoint__syscalls__sys_exit_creat(struct trace_event_raw_sys_exit* ctx){
+    struct event *e;
+    // Are we monitoring syscreat?
+    if(!ctester_cfg.monitored || !ctester_cfg.monitoring_creat)
+       return 0;
+       
+    u64 id = (u64)bpf_get_current_pid_tgid();
+    u32 pid = id >> 32;
+    // Are we monitoring this process ?
+    if(!ctester_cfg.prog_pid || ctester_cfg.prog_pid!=pid)
+       return -1;
+       
+    e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+    if (!e)
+       return -1;
+    u32 uid = (u32)bpf_get_current_uid_gid();
+    e->type = SYS_EXIT_CREAT;
+    e->uid = uid;
+    e->pid = pid;
+    bpf_ringbuf_submit(e, 0);
     return 0;
 }
 
-SEC("tracepoint/syscalls/sys_exit_lseek")
-int BPF_PROG(do_exit_lseek){
-
-    //struct pt_regs* regs = (struct pt_regs*)ctx;
-    // Look up the process using the current PID
-    u32 pid = bpf_get_current_pid_tgid();
-    process_t* process = get_process_by_pid(pid);
-    
-    // Untracked
-    if (!process || (process->monitoring == false)){
-        return -1;
-    }
-    
-    // Look up fs_wrap_stats using current PID
-    fs_wrap_stats_t* fs_wrap = get__fs_wrap_stats__by_host_pid(pid);
-
-    // Monitoring lseek syscall desable
-    if(!fs_wrap || fs_wrap->monitor.monitoring_lseek == false)
-        return -1;
-
-    struct syscall_exit_lseek_args* args = (struct syscall_exit_lseek_args*)ctx;
-
-    fs_wrap->lseek.last_return = args->ret;
-
-    return 0; 
+SEC("tracepoint/syscalls/sys_enter_read")
+int tracepoint__syscalls__sys_enter_read(struct trace_event_raw_sys_enter* ctx){
+    struct event *e;
+    // Are we monitoring sysread?
+    if(!ctester_cfg.monitored || !ctester_cfg.monitoring_read)
+       return 0;
+       
+    u64 id = (u64)bpf_get_current_pid_tgid();
+    u32 pid = id >> 32;
+    // Are we monitoring this process ?
+    if(!ctester_cfg.prog_pid || ctester_cfg.prog_pid!=pid)
+       return -1;
+       
+    e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+    if (!e)
+       return -1;
+    u32 uid = (u32)bpf_get_current_uid_gid();
+    e->type = SYS_ENTER_READ;
+    e->uid = uid;
+    e->pid = pid;
+    bpf_ringbuf_submit(e, 0);
+    return 0;
 }
 
+SEC("tracepoint/syscalls/sys_exit_read")
+int tracepoint__syscalls__sys_exit_read(struct trace_event_raw_sys_exit* ctx){
+    struct event *e;
+    // Are we monitoring sysread?
+    if(!ctester_cfg.monitored || !ctester_cfg.monitoring_read)
+       return 0;
+       
+    u64 id = (u64)bpf_get_current_pid_tgid();
+    u32 pid = id >> 32;
+    // Are we monitoring this process ?
+    if(!ctester_cfg.prog_pid || ctester_cfg.prog_pid!=pid)
+       return -1;
+       
+    e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+    if (!e)
+       return -1;
+    u32 uid = (u32)bpf_get_current_uid_gid();
+    e->type = SYS_EXIT_READ;
+    e->uid = uid;
+    e->pid = pid;
+    bpf_ringbuf_submit(e, 0);
+    return 0;
+}
 /* ========================================================================= *
  * Uprobe Commands                                                           *
  * ========================================================================= */
