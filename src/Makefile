@@ -1,17 +1,19 @@
 # SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 OUTPUT := .output
-OUTPUT2 := ../libbpf/src/.output
 CLANG ?= clang
 LLVM_STRIP ?= llvm-strip
-BPFTOOL ?= ../tools/bpftool
-LIBBPF_SRC := ../libbpf/src
-LIBBPF_OBJ := $(OUTPUT2)/libbpf.a
+BPFTOOL ?= $(abspath ../tools/bpftool)
+LIBBPF_SRC := $(abspath ../libbpf/src)
+LIBBPF_OBJ := $(abspath $(OUTPUT)/libbpf.a)
 # Use our own libbpf API headers and Linux UAPI headers distributed with
 # libbpf to avoid dependency on system-wide headers, which could be missing or
 # outdated
-INCLUDES := -I../CTesterLib/ -I$(OUTPUT) -I../libbpf/include/uapi
+INCLUDES := -I$(OUTPUT) -I../libbpf/include/uapi
 CFLAGS := -g -Wall
 ARCH := $(shell uname -m | sed 's/x86_64/x86/')
+
+APPS = ctester
+LIBAPPS = core.c 
 
 # Get Clang's default includes on this system. We'll explicitly add these dirs
 # to the includes list when compiling with `-target bpf` because otherwise some
@@ -62,25 +64,6 @@ $(OUTPUT)/%.bpf.o: %.bpf.c $(LIBBPF_OBJ) $(wildcard %.h) vmlinux.h | $(OUTPUT)
 	$(Q)$(CLANG) -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) $(INCLUDES) $(CLANG_BPF_SYS_INCLUDES) -c $(filter %.c,$^) -o $@
 	$(Q)$(LLVM_STRIP) -g $@ # strip useless DWARF info
 
-# Build BPF contain code
-ctester.bpf.o: ctester.bpf.c 
-	$(call msg,BPF,$@)
-	$(Q)$(CLANG) -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) $(INCLUDES) $(CLANG_BPF_SYS_INCLUDES) -c $< -o $@
-	$(Q)$(LLVM_STRIP) -g $@ # strip useless DWARF info
-
-
-ctester.skel.h: ctester.bpf.o
-	$(call msg,GEN-SKEL,$@)
-	$(Q)$(BPFTOOL) gen skeleton $< > $@
-
-loader.o: loader.c ctester.skel.h
-	$(call msg,OBJECT,$@)
-	$(CC) -c $< $(INCLUDES) -o $@
-
-loader: loader.o $(LIBBPF_OBJ)
-	$(call msg,BINARY,$@)
-	$(Q)$(CC) $(CFLAGS) $^ -lelf -lz -lpthread -o $@
-
 # Generate BPF skeletons
 $(OUTPUT)/%.skel.h: $(OUTPUT)/%.bpf.o | $(OUTPUT)
 	$(call msg,GEN-SKEL,$@)
@@ -91,12 +74,16 @@ $(patsubst %,$(OUTPUT)/%.o,$(APPS)): %.o: %.skel.h
 
 $(OUTPUT)/%.o: %.c $(wildcard %.h) | $(OUTPUT)
 	$(call msg,CC,$@)
-	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -c $(filter %.c,$^) -o $@
+	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -c $(filter %.c,$^)  -o $@
+
+$(LIBAPPS).o: 
+	$(call msg,CC,$@)
+	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -c $(LIBAPPS)
 
 # Build application binary
-$(APPS): %: $(OUTPUT)/%.o $(LIBBPF_OBJ) | $(OUTPUT)
+$(APPS): %:  $(OUTPUT)/%.o $(LIBBPF_OBJ) | $(OUTPUT)
 	$(call msg,BINARY,$@)
-	$(Q)$(CC) $(CFLAGS) $^ -lelf -lz -o $@
+	$(Q)$(CC) $(CFLAGS) $^ -lelf -lz -lcunit -o $@
 
 # delete failed targets
 .DELETE_ON_ERROR:
