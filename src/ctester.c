@@ -7,8 +7,6 @@
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <CUnit/CUnit.h>
-#include <CUnit/Basic.h>
 #include "ctester.h"
 #include "core.h"
 #include "ctester.skel.h"
