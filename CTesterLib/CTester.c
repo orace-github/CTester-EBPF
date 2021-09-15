@@ -107,7 +107,7 @@ int sendmsg(int qid, long msgtype, bool b){
 	return 0;
 }
 
-int recvmsg(int qid, long msgtype, struct msgbuf* buf){
+int receivemsg(int qid, long msgtype, struct msgbuf* buf){
 	int err;
 	err = msgrcv(qid,buf,sizeof(buf->mtext),msgtype,MSG_NOERROR|IPC_NOWAIT);
 	if(err)

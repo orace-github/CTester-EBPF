@@ -16,6 +16,7 @@ struct ring_buffer *rb = NULL;
 struct ctester_bpf *skel;
 void *shm = NULL;
 int qid;
+process_metadata* process = NULL; // monitored process
 
 static struct env {
     bool verbose;
@@ -25,6 +26,7 @@ int init_sandbox(int argc, char **argv);
 int install_sysv_shared_memory();
 int install_sysv_msg();
 void uninstall_sysv_shared_memory(void);
+void probe_msg_queue();
 
 const char *argp_program_version = "ctester 0.0";
 const char *argp_program_bug_address = "<assogba.emery@gmail.com>";
@@ -103,12 +105,12 @@ int main(int argc, char **argv){
     shm_metadata* shmdata = (shm_metadata*)(shm);
     while(!shmdata->count);
     process_metadata* p = (process_metadata*)(shmdata->data);
-	process_metadata* process = &p[shmdata->count];
+	process = &p[shmdata->count];
 
-    SET_MONITORED_PID(getpid());
-    MONITORING(read,true);
-    MONITORING(write,true);
-    MONITORING(creat,true);
+    //SET_MONITORED_PID(getpid());
+    //MONITORING(read,true);
+    //MONITORING(write,true);
+    //MONITORING(creat,true);
     
     while (!skel->bss->ctester_cfg.end_student_code) {
         err = ring_buffer__poll(rb, 100 /* timeout, ms */);
@@ -121,9 +123,10 @@ int main(int argc, char **argv){
             printf("Error polling perf buffer: %d\n", err);
             break;
         }
-        BEGIN_SANDBOX;
-        int fd = creat("test.txt", 0);
-        END_SANDBOX;
+        probe_msg_queue();
+        //BEGIN_SANDBOX;
+        //int fd = creat("test.txt", 0);
+        //END_SANDBOX;
     }
 cleanup:
 	/* Clean up */
@@ -217,4 +220,61 @@ int install_sysv_msg(){
     }
     qid = id;
     return 0;
+}
+
+void probe_msg_queue(){
+    struct msgbuf msg;
+    process_t* p;
+    bool b;
+    if(receivemsg(qid,MSG_MONITORING_OPEN,&msg) != -1){
+        b = (bool)msg.mtext[0];
+        MONITORING(open,b);
+        process->monitored.open = (b == true) ? 1 : 0;
+    }
+    if(receivemsg(qid,MSG_MONITORING_CREAT,&msg) != -1){
+        b = (bool)msg.mtext[0];
+        MONITORING(creat,b);
+        process->monitored.creat = (b == true) ? 1 : 0;
+    }
+    if(receivemsg(qid,MSG_MONITORING_CLOSE,&msg) != -1){
+        b = (bool)msg.mtext[0];
+        MONITORING(close,b);
+        process->monitored.close = (b == true) ? 1 : 0;
+    }
+    if(receivemsg(qid,MSG_MONITORING_READ,&msg) != -1){
+        b = (bool)msg.mtext[0];
+        MONITORING(read,b);
+        process->monitored.read = (b == true) ? 1 : 0;
+    }
+    if(receivemsg(qid,MSG_MONITORING_WRITE,&msg) != -1){
+        b = (bool)msg.mtext[0];
+        MONITORING(write,b);
+        process->monitored.write = (b == true) ? 1 : 0;
+    }
+    if(receivemsg(qid,MSG_MONITORING_STAT,&msg) != -1){
+        b = (bool)msg.mtext[0];
+        MONITORING(stat,b);
+        process->monitored.stat = (b == true) ? 1 : 0;
+    }
+    if(receivemsg(qid,MSG_MONITORING_FSTAT,&msg) != -1){
+        b = (bool)msg.mtext[0];
+        MONITORING(fstat,b);
+        process->monitored.fstat = (b == true) ? 1 : 0;
+    }
+    if(receivemsg(qid,MSG_MONITORING_LSEEK,&msg) != -1){
+        b = (bool)msg.mtext[0];
+        MONITORING(lseek,b);
+        process->monitored.lseek = (b == true) ? 1 : 0;
+    }
+    if(receivemsg(qid,MSG_MONITORING_PID,&msg) != -1){
+        p = (process_t*)msg.mtext;
+        SET_MONITORED_PID(p->pid);
+        BEGIN_SANDBOX;
+        process->monitored.pid = 1;
+    }
+    if(receivemsg(qid,MSG_UNMONITORING_PID,&msg) != -1){
+        p = (process_t*)msg.mtext;
+        END_SANDBOX;
+        process->monitored.pid = 0;
+    }
 }

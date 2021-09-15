@@ -53,7 +53,7 @@ struct msgbuf{
 };
 
 int sendmsg(int qid, long msgtype, bool b /* monitoring syscall false/true */);
-int recvmsg(int qid, long msgtype, struct msgbuf* buf);
+int receivemsg(int qid, long msgtype, struct msgbuf* buf);
 
 // basic structure to record the parameters of the last open call
 struct params_open_t {
