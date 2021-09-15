@@ -1525,7 +1525,7 @@ struct page {
 
 typedef struct cpumask cpumask_var_t[1];
 
-struct tracepoint_func {
+_epoint_func {
 	void *func;
 	void *data;
 	int prio;

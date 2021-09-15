@@ -12,6 +12,17 @@
 #define OFFSET(type,field) (long)(&((type*)0)->field)
 #define ENTRY(ptr,type,field) (type*)((char*)(ptr) - (char*)(&((type*)0)->field))
 
+// CTester system call
+typedef enum{
+	SYS_OPEN,
+	SYS_CREAT,
+	SYS_CLOSE,
+	SYS_READ,
+	SYS_WRITE,
+	SYS_STAT,
+	SYS_FSTAT,
+	SYS_LSEEK,
+} CTESTER_SYSCALL;
 // Abstract CTester sandbox context
 typedef void* CTESTER_CTX; 
 
@@ -25,7 +36,8 @@ extern int CTESTER_REMOVE_PROCESS(CTESTER_CTX ctx);
 
 extern int CTESTER_RELEASE_CTX(CTESTER_CTX ctx);
 
-extern void CTESTER_SET_MONITORING(CTESTER_CTX ctx, unsigned int fs_flags);
+extern void CTESTER_SET_MONITORING(CTESTER_CTX ctx, CTESTER_SYSCALL sys, bool b);
+
 
 /* CTester sandbox */
 

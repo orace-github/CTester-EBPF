@@ -10,15 +10,21 @@
 #include "ctester.h"
 #include "core.h"
 #include "ctester.skel.h"
+#include "../CTesterLib/CTester.h"
 
 struct ring_buffer *rb = NULL;
 struct ctester_bpf *skel;
-  
+void *shm = NULL;
+int qid;
+
 static struct env {
     bool verbose;
 } env;
 
 int init_sandbox(int argc, char **argv);
+int install_sysv_shared_memory();
+int install_sysv_msg();
+void uninstall_sysv_shared_memory(void);
 
 const char *argp_program_version = "ctester 0.0";
 const char *argp_program_bug_address = "<assogba.emery@gmail.com>";
@@ -118,7 +124,8 @@ cleanup:
 	/* Clean up */
     ring_buffer__free(rb);
     ctester_bpf__destroy(skel);
-
+    uninstall_sysv_shared_memory();
+    
     return err < 0 ? -err : 0;
 }
 
@@ -159,5 +166,50 @@ int init_sandbox(int argc, char **argv){
         fprintf(stderr, "Failed to create ring buffer\n");
         return err;
     }
+    /* Set shared memory */
+    err = install_sysv_shared_memory();
+    if(err){
+        fprintf(stderr, "shared memory installation failed");
+        return err;
+    }
 
+    /* Set sysv msg */
+    err = install_sysv_msg();
+    if(err){
+        fprintf(stderr, "sysv msg installation failed");
+        return err;
+    }
+}
+
+int install_sysv_shared_memory()
+{
+    /* shared memory */
+    int shmID;
+    shmID = shmget(CTESTER_SHM_KEY, CTESTER_SHM_SIZE,
+                   CTESTER_SHM_PERM | IPC_CREAT);
+    if(shmID < 0){
+        return -1;
+    }
+    shm_metadata *shmPTR = (shm_metadata *)shmat(shmID, NULL, 0);
+    shmPTR->count = 0;
+    bzero(shmPTR->data, (CTESTER_SHM_SIZE - sizeof(*shmPTR)));
+    shm = shmPTR;
+    return 0;
+}
+
+void uninstall_sysv_shared_memory(void){
+    if(shm){
+        shmdt(shm);
+    }
+}
+
+int install_sysv_msg(){
+    /* msg */
+    int id;
+    id = msgget(CTESTER_MSG_KEY,IPC_CREAT|CTESTER_MSG_PERM);
+    if(id == -1){
+        return -1;
+    }
+    qid = id;
+    return 0;
 }
