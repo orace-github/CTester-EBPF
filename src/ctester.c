@@ -99,7 +99,12 @@ int main(int argc, char **argv){
     if(err < 0){
         fprintf(stderr, "Failed start the test %d\n", err);
     }
-  
+    // wait for monitoring process, to register in shared memory
+    shm_metadata* shmdata = (shm_metadata*)(shm);
+    while(!shmdata->count);
+    process_metadata* p = (process_metadata*)(shmdata->data);
+	process_metadata* process = &p[shmdata->count];
+
     SET_MONITORED_PID(getpid());
     MONITORING(read,true);
     MONITORING(write,true);
@@ -125,7 +130,7 @@ cleanup:
     ring_buffer__free(rb);
     ctester_bpf__destroy(skel);
     uninstall_sysv_shared_memory();
-    
+
     return err < 0 ? -err : 0;
 }
 
