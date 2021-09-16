@@ -11,7 +11,7 @@ CTester implementation with eBPF
 ```bash
 git clone --recursive git@github.com:oracegit/CTester-EBPF.git
 cd CTester-EBPF/src
-make loader
+make
 ```
 ## Build libctester static file
 ``` bash
@@ -23,7 +23,7 @@ make all
 ## Start loader
 ``` bash
 cd ../src
-sudo ./loader
+sudo ./tester
 ```
 ## Compile a test program
 ``` bash
