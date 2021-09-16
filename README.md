@@ -23,7 +23,7 @@ make all
 ## Start loader
 ``` bash
 cd ../src
-sudo ./tester
+sudo ./ctester
 ```
 ## Compile a test program
 ``` bash
