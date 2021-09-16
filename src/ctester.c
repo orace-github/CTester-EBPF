@@ -79,7 +79,7 @@ static void bump_memlock_rlimit(void){
     }
 }
 
-static void record_event(struct event *e){
+static void record_event(const struct event *e){
     fprintf(stderr, "captured: %d from %d\n", e->type, e->pid);
 }
 
@@ -101,12 +101,7 @@ int main(int argc, char **argv){
     if(err < 0){
         fprintf(stderr, "Failed start the test %d\n", err);
     }
-    // wait for monitoring process, to register in shared memory
-    shm_metadata* shmdata = (shm_metadata*)(shm);
-    while(!shmdata->count);
-    process_metadata* p = (process_metadata*)(shmdata->data);
-	process = &p[shmdata->count];
-
+    
     //SET_MONITORED_PID(getpid());
     //MONITORING(read,true);
     //MONITORING(write,true);
@@ -187,6 +182,7 @@ int init_sandbox(int argc, char **argv){
         fprintf(stderr, "sysv msg installation failed");
         return err;
     }
+    return 0;
 }
 
 int install_sysv_shared_memory()
@@ -223,6 +219,12 @@ int install_sysv_msg(){
 }
 
 void probe_msg_queue(){
+    // wait for monitoring process, to register in shared memory
+    shm_metadata* shmdata = (shm_metadata*)(shm);
+    while(!shmdata->count);
+    process_metadata* pm = (process_metadata*)(shmdata->data);
+	process = &pm[shmdata->count];
+
     struct msgbuf msg;
     process_t* p;
     bool b;

@@ -25,7 +25,7 @@ void shm_free(process_metadata* p){
 	// TODO
 }
 
-int sendmsg(int qid, long msgtype, bool b){
+int sndmsg(int qid, long msgtype, bool b){
 	struct msgbuf buf;
 	int err;
 	if(msgtype == MSG_MONITORING_CLOSE){
@@ -154,7 +154,7 @@ int CTESTER_ADD_PROCESS(CTESTER_CTX ctx)
     if(!ctx) 
 		return -1;
 	process_metadata* p = (process_metadata*)ctx;
-	sendmsg(p->msgid,MSG_MONITORING_PID,true);
+	sndmsg(p->msgid,MSG_MONITORING_PID,true);
 	while(!p->monitored.pid);
    	return 0;
 }
@@ -165,7 +165,7 @@ int CTESTER_REMOVE_PROCESS(CTESTER_CTX ctx)
 		return -1;
 	// - get process pid gid
 	process_metadata* p = (process_metadata*)ctx;
-	sendmsg(p->msgid,MSG_UNMONITORING_PID,true);
+	sndmsg(p->msgid,MSG_UNMONITORING_PID,true);
 	while(p->monitored.pid);
 	return 0;
 }
@@ -175,7 +175,7 @@ int CTESTER_RELEASE_CTX(CTESTER_CTX ctx)
     if(!ctx) 
 		return -1;
 	// - get process pid gid
-	process_metadata* p = (process_metadata*)ctx;
+	//process_metadata* p = (process_metadata*)ctx;
 	CTESTER_REMOVE_PROCESS(ctx);
     
     return 0;
@@ -188,35 +188,35 @@ void CTESTER_SET_MONITORING(CTESTER_CTX ctx, CTESTER_SYSCALL sys, bool b)
 	// - get process pid gid
 	process_metadata* p = (process_metadata*)ctx;
 	if(sys == SYS_OPEN){
-		sendmsg(p->msgid,MSG_MONITORING_OPEN,b);
+		sndmsg(p->msgid,MSG_MONITORING_OPEN,b);
 		while(!p->monitored.open);
 	}
 	else if(sys == SYS_CLOSE){
-		sendmsg(p->msgid,MSG_MONITORING_CLOSE,b);
+		sndmsg(p->msgid,MSG_MONITORING_CLOSE,b);
 		while(!p->monitored.close);
 	}
 	else if(sys == SYS_CREAT){
-		sendmsg(p->msgid,MSG_MONITORING_CREAT,b);
+		sndmsg(p->msgid,MSG_MONITORING_CREAT,b);
 		while(!p->monitored.creat);
 	}
 	else if(sys == SYS_FSTAT){
-		sendmsg(p->msgid,MSG_MONITORING_FSTAT,b);
+		sndmsg(p->msgid,MSG_MONITORING_FSTAT,b);
 		while(!p->monitored.fstat);
 	}
 	else if(sys == SYS_LSEEK){
-		sendmsg(p->msgid,MSG_MONITORING_LSEEK,b);
+		sndmsg(p->msgid,MSG_MONITORING_LSEEK,b);
 		while(!p->monitored.lseek);
 	}
 	else if(sys == SYS_READ){
-		sendmsg(p->msgid,MSG_MONITORING_READ,b);
+		sndmsg(p->msgid,MSG_MONITORING_READ,b);
 		while(!p->monitored.read);
 	}
 	else if(sys == SYS_WRITE){
-		sendmsg(p->msgid,MSG_MONITORING_WRITE,b);
+		sndmsg(p->msgid,MSG_MONITORING_WRITE,b);
 		while(!p->monitored.write);
 	}
 	else if(sys == SYS_STAT){
-		sendmsg(p->msgid,MSG_MONITORING_STAT,b);
+		sndmsg(p->msgid,MSG_MONITORING_STAT,b);
 		while(!p->monitored.stat);
 	}
 }
