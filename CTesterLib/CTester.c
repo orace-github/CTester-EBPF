@@ -120,7 +120,7 @@ int sndmsg(int qid, long msgtype, bool b){
 
 int receivemsg(int qid, long msgtype, struct msgbuf* buf){
 	int err;
-	err = msgrcv(qid,buf,sizeof(buf->mtext),msgtype,0);
+	err = msgrcv(qid,buf,sizeof(buf->mtext),msgtype,IPC_NOWAIT);
 	if(err)
 		return -1;
 	return 0;
