@@ -229,7 +229,7 @@ void probe_msg_queue(){
     while(!shmdata->count);
     process_metadata* pm = (process_metadata*)(shmdata->data);
 	process = &pm[shmdata->count];
-
+    fprintf(stderr,"probe msg queue\n");
     struct msgbuf msg;
     process_t* p;
     bool b;
