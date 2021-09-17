@@ -32,58 +32,66 @@ int sndmsg(int qid, long msgtype, bool b){
 	if(msgtype == MSG_MONITORING_CLOSE){
 		buf.mtype = MSG_MONITORING_CLOSE;
 		buf.mtext[0] = (char)b;
-		err = msgsnd(qid,&buf,sizeof(buf.mtext),IPC_NOWAIT);
+		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
 		if(err)
 			return err;
+		fprintf(stderr,"Send sysclose msg");
 	}
 	if(msgtype == MSG_MONITORING_CREAT){
 		buf.mtype = MSG_MONITORING_CREAT;
 		buf.mtext[0] = (char)b;
-		err = msgsnd(qid,&buf,sizeof(buf.mtext),IPC_NOWAIT);
+		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
 		if(err)
 			return err;
+		fprintf(stderr,"Send syscreat msg");
 	}
 	else if(msgtype == MSG_MONITORING_FSTAT){
 		buf.mtype = MSG_MONITORING_FSTAT;
 		buf.mtext[0] = (char)b;
-		err = msgsnd(qid,&buf,sizeof(buf.mtext),IPC_NOWAIT);
+		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
 		if(err)
 			return err;
+		fprintf(stderr,"Send sysfstat msg");
 	}
 	else if(msgtype == MSG_MONITORING_LSEEK){
 		buf.mtype = MSG_MONITORING_LSEEK;
 		buf.mtext[0] = (char)b;
-		err = msgsnd(qid,&buf,sizeof(buf.mtext),IPC_NOWAIT);
+		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
 		if(err)
 			return err;
+		fprintf(stderr,"Send syslseek msg");
 	}
 	else if(msgtype == MSG_MONITORING_OPEN){
 		buf.mtype = MSG_MONITORING_OPEN;
 		buf.mtext[0] = (char)b;
-		err = msgsnd(qid,&buf,sizeof(buf.mtext),IPC_NOWAIT);
+		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
 		if(err)
 			return err;
+		fprintf(stderr,"Send sysopen msg");
 	}
 	else if(msgtype == MSG_MONITORING_READ){
 		buf.mtype = MSG_MONITORING_READ;
 		buf.mtext[0] = (char)b;
-		err = msgsnd(qid,&buf,sizeof(buf.mtext),IPC_NOWAIT);
+		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
 		if(err)
 			return err;
+		fprintf(stderr,"Send sysread msg");
 	}
 	else if(msgtype == MSG_MONITORING_STAT){
 		buf.mtype = MSG_MONITORING_STAT;
 		buf.mtext[0] = (char)b;
-		err = msgsnd(qid,&buf,sizeof(buf.mtext),IPC_NOWAIT);
+		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
 		if(err)
 			return err;
+		fprintf(stderr,"Send sysstat msg");
 	}
 	else if(msgtype == MSG_MONITORING_WRITE){
 		buf.mtype = MSG_MONITORING_WRITE;
 		buf.mtext[0] = (char)b;
-		err = msgsnd(qid,&buf,sizeof(buf.mtext),IPC_NOWAIT);
+		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
 		if(err)
 			return err;
+		fprintf(stderr,"Send syswrite msg");
 	}
 	else if(msgtype == MSG_MONITORING_PID){
 		buf.mtype = MSG_MONITORING_PID;
@@ -91,9 +99,10 @@ int sndmsg(int qid, long msgtype, bool b){
 		p.gid = getgid();
 		p.pid = getpid();
 		memcpy(buf.mtext,&p,sizeof(buf.mtext));
-		err = msgsnd(qid,&buf,sizeof(buf.mtext),IPC_NOWAIT);
+		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
 		if(err)
 			return err;
+		fprintf(stderr,"Send pid msg");
 	}
 	else if(msgtype == MSG_UNMONITORING_PID){
 		buf.mtype = MSG_UNMONITORING_PID;
@@ -101,16 +110,17 @@ int sndmsg(int qid, long msgtype, bool b){
 		p.gid = getgid();
 		p.pid = getpid();
 		memcpy(buf.mtext,&p,sizeof(buf.mtext));
-		err = msgsnd(qid,&buf,sizeof(buf.mtext),IPC_NOWAIT);
+		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
 		if(err)
 			return err;
+		fprintf(stderr,"Send unpid msg");
 	}
 	return 0;
 }
 
 int receivemsg(int qid, long msgtype, struct msgbuf* buf){
 	int err;
-	err = msgrcv(qid,buf,sizeof(buf->mtext),msgtype,MSG_NOERROR|IPC_NOWAIT);
+	err = msgrcv(qid,buf,sizeof(buf->mtext),msgtype,0);
 	if(err)
 		return -1;
 	return 0;

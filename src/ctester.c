@@ -26,6 +26,7 @@ int init_sandbox(int argc, char **argv);
 int install_sysv_shared_memory();
 int install_sysv_msg();
 void uninstall_sysv_shared_memory(void);
+void uninstall_sysv_msg();
 void probe_msg_queue();
 
 const char *argp_program_version = "ctester 0.0";
@@ -128,7 +129,7 @@ cleanup:
     ring_buffer__free(rb);
     ctester_bpf__destroy(skel);
     uninstall_sysv_shared_memory();
-
+    uninstall_sysv_msg();
     return err < 0 ? -err : 0;
 }
 
@@ -207,6 +208,10 @@ void uninstall_sysv_shared_memory(void){
     }
 }
 
+void uninstall_sysv_msg(){
+    msgctl(qid,IPC_RMID,NULL);
+}
+
 int install_sysv_msg(){
     /* msg */
     int id;
@@ -229,52 +234,62 @@ void probe_msg_queue(){
     process_t* p;
     bool b;
     if(receivemsg(qid,MSG_MONITORING_OPEN,&msg) != -1){
+        fprintf(stderr,"recv open msg");
         b = (bool)msg.mtext[0];
         MONITORING(open,b);
         process->monitored.open = (b == true) ? 1 : 0;
     }
     if(receivemsg(qid,MSG_MONITORING_CREAT,&msg) != -1){
+        fprintf(stderr,"recv creat msg");
         b = (bool)msg.mtext[0];
         MONITORING(creat,b);
         process->monitored.creat = (b == true) ? 1 : 0;
     }
     if(receivemsg(qid,MSG_MONITORING_CLOSE,&msg) != -1){
+        fprintf(stderr,"recv close msg");
         b = (bool)msg.mtext[0];
         MONITORING(close,b);
         process->monitored.close = (b == true) ? 1 : 0;
     }
     if(receivemsg(qid,MSG_MONITORING_READ,&msg) != -1){
+        fprintf(stderr,"recv read msg");
         b = (bool)msg.mtext[0];
         MONITORING(read,b);
         process->monitored.read = (b == true) ? 1 : 0;
     }
     if(receivemsg(qid,MSG_MONITORING_WRITE,&msg) != -1){
+        fprintf(stderr,"recv write msg");
         b = (bool)msg.mtext[0];
         MONITORING(write,b);
         process->monitored.write = (b == true) ? 1 : 0;
     }
     if(receivemsg(qid,MSG_MONITORING_STAT,&msg) != -1){
+        fprintf(stderr,"recv stat msg");
         b = (bool)msg.mtext[0];
         MONITORING(stat,b);
         process->monitored.stat = (b == true) ? 1 : 0;
     }
     if(receivemsg(qid,MSG_MONITORING_FSTAT,&msg) != -1){
+        fprintf(stderr,"recv fstat msg");
         b = (bool)msg.mtext[0];
         MONITORING(fstat,b);
         process->monitored.fstat = (b == true) ? 1 : 0;
     }
     if(receivemsg(qid,MSG_MONITORING_LSEEK,&msg) != -1){
+        fprintf(stderr,"recv lseek msg");
         b = (bool)msg.mtext[0];
         MONITORING(lseek,b);
         process->monitored.lseek = (b == true) ? 1 : 0;
     }
     if(receivemsg(qid,MSG_MONITORING_PID,&msg) != -1){
+        fprintf(stderr,"recv pid msg");
         p = (process_t*)msg.mtext;
         SET_MONITORED_PID(p->pid);
         BEGIN_SANDBOX;
         process->monitored.pid = 1;
     }
     if(receivemsg(qid,MSG_UNMONITORING_PID,&msg) != -1){
+        fprintf(stderr,"recv unpid msg");
         p = (process_t*)msg.mtext;
         END_SANDBOX;
         process->monitored.pid = 0;
