@@ -11,8 +11,8 @@ int main(){
 	int fd = 0;
 	void* ctx = CTESTER_INIT_CTX();
 	CTESTER_SANDBOX_ENTER(ctx);
-	CTESTER_SET_MONITORING(ctx,SYS_OPEN,true);
-	fd = open("essai.txt",O_CREAT|O_RDWR);
+	CTESTER_SET_MONITORING(ctx,SYS_CREAT,true);
+	fd = creat("essai.txt",0);
 	CTESTER_SANDBOX_EXIT(ctx);
 	return 0;
 }

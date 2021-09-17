@@ -4,6 +4,7 @@
 // Copyright (C) 2021  Orace KPAKPO
 // Sep, 02 2021 Orace KPAKPO  Created this.
 
+#include <stdio.h>
 #include "CTester.h"
 
 // CTester shared memory helper
@@ -117,46 +118,49 @@ int receivemsg(int qid, long msgtype, struct msgbuf* buf){
 
 
 CTESTER_CTX CTESTER_INIT_CTX(void){
-    // TODO
-	// - get shared memory
-	int shmID;
-	shmID = shmget(CTESTER_SHM_KEY,CTESTER_SHM_SIZE,CTESTER_SHM_PERM);
-	if(shmID < 0)				
-		return NULL;
-	shm_metadata* shm = (shm_metadata*)shmat(shmID,NULL,0);
-	
-    if(shm == (void*)-1)
-		return NULL;
-	
-	// msg sysv
-	/* msg */
-    int id;
-    id = msgget(CTESTER_MSG_KEY,CTESTER_MSG_PERM);
-    if(id == -1){
-        return NULL;
-    }
-
-    // - process context
-	process_metadata* p = shm_malloc(shm);
-	if(!p)
-		return NULL;
-	// clear all flags
-	memset(&p->monitored,0,sizeof(p->monitored));
-	p->shm = shm;
-	p->msgid = id;
-	p->ctx = (void*)p;
-	
-    return p->ctx;
+   // - get shared memory
+   int shmID, id;
+   shmID = shmget(CTESTER_SHM_KEY,CTESTER_SHM_SIZE,CTESTER_SHM_PERM);
+   if(shmID < 0){
+      fprintf(stderr, "Unable to get SHM\n");				
+      return NULL;
+   }
+   shm_metadata* shm = (shm_metadata*)shmat(shmID,NULL,0);	
+   if(shm == (void*)-1){
+      fprintf(stderr, "Unable to attach SHM (%d)\n", shmID);
+      return NULL; 
+   } 
+   
+   id = msgget(CTESTER_MSG_KEY,CTESTER_MSG_PERM);
+   if(id < 0 ){
+       fprintf(stderr, "Unable to get MSG\n");
+       return NULL;
+   }
+   process_metadata* p = shm_malloc(shm);
+   if(!p){
+      fprintf(stderr, "Unable to allocate process_metadata in SHM\n");
+      return NULL;
+   }
+   // clear all flags
+   memset(&p->monitored,0,sizeof(p->monitored));
+   p->shm = shm;
+   p->msgid = id;
+   p->ctx = (void*)p;	
+   fprintf(stderr, "Context init succeded\n");
+   return p->ctx;
 }
 
-int CTESTER_ADD_PROCESS(CTESTER_CTX ctx)
-{
-    if(!ctx) 
-		return -1;
-	process_metadata* p = (process_metadata*)ctx;
-	sndmsg(p->msgid,MSG_MONITORING_PID,true);
-	while(!p->monitored.pid);
-   	return 0;
+int CTESTER_ADD_PROCESS(CTESTER_CTX ctx){
+    if(!ctx){ 
+        fprintf(stderr, "Failed: Unitialized context\n");
+        return -1;
+    }
+    process_metadata* p = (process_metadata*)ctx;
+    sndmsg(p->msgid,MSG_MONITORING_PID,true);
+    fprintf(stderr, "process id (%d)\n", p->monitored.pid);
+    while(!p->monitored.pid);
+    fprintf(stderr, "process was added in the context\n");
+    return 0;
 }
 
 int CTESTER_REMOVE_PROCESS(CTESTER_CTX ctx)
