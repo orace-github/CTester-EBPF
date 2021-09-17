@@ -16,7 +16,7 @@ struct ring_buffer *rb = NULL;
 struct ctester_bpf *skel;
 void *shm = NULL;
 int qid;
-process_metadata* process = NULL; // monitored process
+volatile process_metadata* process = NULL; // monitored process
 
 static struct env {
     bool verbose;
@@ -172,14 +172,14 @@ int init_sandbox(int argc, char **argv){
     }
     /* Set shared memory */
     err = install_sysv_shared_memory();
-    if(err){
+    if(err < 0){
         fprintf(stderr, "shared memory installation failed");
         return err;
     }
 
     /* Set sysv msg */
     err = install_sysv_msg();
-    if(err){
+    if(err < 0){
         fprintf(stderr, "sysv msg installation failed");
         return err;
     }
@@ -228,65 +228,68 @@ void probe_msg_queue(){
     shm_metadata* shmdata = (shm_metadata*)(shm);
     while(!shmdata->count);
     process_metadata* pm = (process_metadata*)(shmdata->data);
-	process = &pm[shmdata->count];
-    fprintf(stderr,"probe msg queue\n");
+	process = &pm[shmdata->count - 1];
+    
+    //fprintf(stderr,"probe msg queue\n");
     struct msgbuf msg;
     process_t* p;
     bool b;
     if(receivemsg(qid,MSG_MONITORING_OPEN,&msg) != -1){
-        fprintf(stderr,"recv open msg");
+        fprintf(stderr,"recv open msg\n");
         b = (bool)msg.mtext[0];
         MONITORING(open,b);
         process->monitored.open = (b == true) ? 1 : 0;
     }
     if(receivemsg(qid,MSG_MONITORING_CREAT,&msg) != -1){
-        fprintf(stderr,"recv creat msg");
+        fprintf(stderr,"recv creat msg\n");
         b = (bool)msg.mtext[0];
         MONITORING(creat,b);
         process->monitored.creat = (b == true) ? 1 : 0;
     }
     if(receivemsg(qid,MSG_MONITORING_CLOSE,&msg) != -1){
-        fprintf(stderr,"recv close msg");
+        fprintf(stderr,"recv close msg\n");
         b = (bool)msg.mtext[0];
         MONITORING(close,b);
         process->monitored.close = (b == true) ? 1 : 0;
     }
     if(receivemsg(qid,MSG_MONITORING_READ,&msg) != -1){
-        fprintf(stderr,"recv read msg");
+        fprintf(stderr,"recv read msg\n");
         b = (bool)msg.mtext[0];
         MONITORING(read,b);
         process->monitored.read = (b == true) ? 1 : 0;
     }
     if(receivemsg(qid,MSG_MONITORING_WRITE,&msg) != -1){
-        fprintf(stderr,"recv write msg");
+        fprintf(stderr,"recv write msg\n");
         b = (bool)msg.mtext[0];
         MONITORING(write,b);
         process->monitored.write = (b == true) ? 1 : 0;
     }
     if(receivemsg(qid,MSG_MONITORING_STAT,&msg) != -1){
-        fprintf(stderr,"recv stat msg");
+        fprintf(stderr,"recv stat msg\n");
         b = (bool)msg.mtext[0];
         MONITORING(stat,b);
         process->monitored.stat = (b == true) ? 1 : 0;
     }
     if(receivemsg(qid,MSG_MONITORING_FSTAT,&msg) != -1){
-        fprintf(stderr,"recv fstat msg");
+        fprintf(stderr,"recv fstat msg\n");
         b = (bool)msg.mtext[0];
         MONITORING(fstat,b);
         process->monitored.fstat = (b == true) ? 1 : 0;
     }
     if(receivemsg(qid,MSG_MONITORING_LSEEK,&msg) != -1){
-        fprintf(stderr,"recv lseek msg");
+        fprintf(stderr,"recv lseek msg\n");
         b = (bool)msg.mtext[0];
         MONITORING(lseek,b);
         process->monitored.lseek = (b == true) ? 1 : 0;
     }
     if(receivemsg(qid,MSG_MONITORING_PID,&msg) != -1){
-        fprintf(stderr,"recv pid msg");
+        fprintf(stderr,"recv pid msg\n");
         p = (process_t*)msg.mtext;
         SET_MONITORED_PID(p->pid);
         BEGIN_SANDBOX;
         process->monitored.pid = 1;
+        fprintf(stderr,"process pid (%d)\n",p->pid);
+        fprintf(stderr,"pid flag: %s\n",(process->monitored.pid == 1) ? "true" : "false");
     }
     if(receivemsg(qid,MSG_UNMONITORING_PID,&msg) != -1){
         fprintf(stderr,"recv unpid msg");

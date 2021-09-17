@@ -35,7 +35,7 @@ int sndmsg(int qid, long msgtype, bool b){
 		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
 		if(err)
 			return err;
-		fprintf(stderr,"Send sysclose msg");
+		fprintf(stderr,"Send sysclose msg\n");
 	}
 	if(msgtype == MSG_MONITORING_CREAT){
 		buf.mtype = MSG_MONITORING_CREAT;
@@ -43,7 +43,7 @@ int sndmsg(int qid, long msgtype, bool b){
 		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
 		if(err)
 			return err;
-		fprintf(stderr,"Send syscreat msg");
+		fprintf(stderr,"Send syscreat msg\n");
 	}
 	else if(msgtype == MSG_MONITORING_FSTAT){
 		buf.mtype = MSG_MONITORING_FSTAT;
@@ -51,7 +51,7 @@ int sndmsg(int qid, long msgtype, bool b){
 		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
 		if(err)
 			return err;
-		fprintf(stderr,"Send sysfstat msg");
+		fprintf(stderr,"Send sysfstat msg\n");
 	}
 	else if(msgtype == MSG_MONITORING_LSEEK){
 		buf.mtype = MSG_MONITORING_LSEEK;
@@ -59,7 +59,7 @@ int sndmsg(int qid, long msgtype, bool b){
 		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
 		if(err)
 			return err;
-		fprintf(stderr,"Send syslseek msg");
+		fprintf(stderr,"Send syslseek msg\n");
 	}
 	else if(msgtype == MSG_MONITORING_OPEN){
 		buf.mtype = MSG_MONITORING_OPEN;
@@ -67,7 +67,7 @@ int sndmsg(int qid, long msgtype, bool b){
 		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
 		if(err)
 			return err;
-		fprintf(stderr,"Send sysopen msg");
+		fprintf(stderr,"Send sysopen msg\n");
 	}
 	else if(msgtype == MSG_MONITORING_READ){
 		buf.mtype = MSG_MONITORING_READ;
@@ -75,7 +75,7 @@ int sndmsg(int qid, long msgtype, bool b){
 		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
 		if(err)
 			return err;
-		fprintf(stderr,"Send sysread msg");
+		fprintf(stderr,"Send sysread msg\n");
 	}
 	else if(msgtype == MSG_MONITORING_STAT){
 		buf.mtype = MSG_MONITORING_STAT;
@@ -83,7 +83,7 @@ int sndmsg(int qid, long msgtype, bool b){
 		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
 		if(err)
 			return err;
-		fprintf(stderr,"Send sysstat msg");
+		fprintf(stderr,"Send sysstat msg\n");
 	}
 	else if(msgtype == MSG_MONITORING_WRITE){
 		buf.mtype = MSG_MONITORING_WRITE;
@@ -91,7 +91,7 @@ int sndmsg(int qid, long msgtype, bool b){
 		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
 		if(err)
 			return err;
-		fprintf(stderr,"Send syswrite msg");
+		fprintf(stderr,"Send syswrite msg\n");
 	}
 	else if(msgtype == MSG_MONITORING_PID){
 		buf.mtype = MSG_MONITORING_PID;
@@ -102,7 +102,7 @@ int sndmsg(int qid, long msgtype, bool b){
 		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
 		if(err)
 			return err;
-		fprintf(stderr,"Send pid msg");
+		fprintf(stderr,"Send pid msg in queue (%d)\n",qid);
 	}
 	else if(msgtype == MSG_UNMONITORING_PID){
 		buf.mtype = MSG_UNMONITORING_PID;
@@ -113,7 +113,7 @@ int sndmsg(int qid, long msgtype, bool b){
 		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
 		if(err)
 			return err;
-		fprintf(stderr,"Send unpid msg");
+		fprintf(stderr,"Send unpid msg\n");
 	}
 	return 0;
 }
@@ -121,7 +121,8 @@ int sndmsg(int qid, long msgtype, bool b){
 int receivemsg(int qid, long msgtype, struct msgbuf* buf){
 	int err;
 	err = msgrcv(qid,buf,sizeof(buf->mtext),msgtype,IPC_NOWAIT);
-	if(err)
+	
+	if(err < 0)
 		return -1;
 	return 0;
 }
