@@ -8,10 +8,12 @@
 
 int main(){
 
-	int fd = 0;
-	void* ctx = CTESTER_INIT_CTX();
-	CTESTER_SANDBOX_ENTER(ctx);
+	int fd = 0, i;
+	void* ctx; 
+	for(i = 0; i < 3; i++)
+	    ctx = CTESTER_INIT_CTX();
 	CTESTER_SET_MONITORING(ctx,SYS_CREAT,true);
+	CTESTER_SANDBOX_ENTER(ctx);
 	fd = creat("essai.txt",0);
 	CTESTER_SANDBOX_EXIT(ctx);
 	return 0;

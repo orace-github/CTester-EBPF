@@ -8,123 +8,49 @@
 #include "CTester.h"
 
 // CTester shared memory helper
-process_metadata* shm_malloc(shm_metadata* shm)
-{
-	// - check memory boundary
-	if(((CTESTER_SHM_SIZE-(sizeof(shm_metadata)))/sizeof(process_metadata)) < shm->count )
-		return NULL;
-
-	process_metadata* p = (process_metadata*)(shm->data);
-	process_metadata* pp = &p[shm->count];
-	shm->count++;
-	return pp;
+process_metadata* shm_malloc(shm_metadata* shm){
+    // - check memory boundary
+    if(((CTESTER_SHM_SIZE-(sizeof(shm_metadata)))/sizeof(process_metadata)) <= shm->count ){
+        fprintf(stderr, "Not enough espace in the shared memory\n");
+        return NULL;
+    }
+    fprintf(stderr, "%ld:%d\n",((CTESTER_SHM_SIZE-(sizeof(shm_metadata)))/sizeof(process_metadata)), shm->count );
+    process_metadata* p = (process_metadata*)(shm->data);
+    process_metadata* pp = &p[shm->count];
+    shm->count++;
+    return pp;
 }
 
 void shm_free(process_metadata* p){
-	if(!p)
+    if(!p)
         return;
-	// TODO
+    // TODO
 }
 
 int sndmsg(int qid, long msgtype, bool b){
-	struct msgbuf buf;
-	int err;
-	if(msgtype == MSG_MONITORING_CLOSE){
-		buf.mtype = MSG_MONITORING_CLOSE;
-		buf.mtext[0] = (char)b;
-		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
-		if(err)
-			return err;
-		fprintf(stderr,"Send sysclose msg\n");
-	}
-	if(msgtype == MSG_MONITORING_CREAT){
-		buf.mtype = MSG_MONITORING_CREAT;
-		buf.mtext[0] = (char)b;
-		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
-		if(err)
-			return err;
-		fprintf(stderr,"Send syscreat msg\n");
-	}
-	else if(msgtype == MSG_MONITORING_FSTAT){
-		buf.mtype = MSG_MONITORING_FSTAT;
-		buf.mtext[0] = (char)b;
-		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
-		if(err)
-			return err;
-		fprintf(stderr,"Send sysfstat msg\n");
-	}
-	else if(msgtype == MSG_MONITORING_LSEEK){
-		buf.mtype = MSG_MONITORING_LSEEK;
-		buf.mtext[0] = (char)b;
-		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
-		if(err)
-			return err;
-		fprintf(stderr,"Send syslseek msg\n");
-	}
-	else if(msgtype == MSG_MONITORING_OPEN){
-		buf.mtype = MSG_MONITORING_OPEN;
-		buf.mtext[0] = (char)b;
-		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
-		if(err)
-			return err;
-		fprintf(stderr,"Send sysopen msg\n");
-	}
-	else if(msgtype == MSG_MONITORING_READ){
-		buf.mtype = MSG_MONITORING_READ;
-		buf.mtext[0] = (char)b;
-		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
-		if(err)
-			return err;
-		fprintf(stderr,"Send sysread msg\n");
-	}
-	else if(msgtype == MSG_MONITORING_STAT){
-		buf.mtype = MSG_MONITORING_STAT;
-		buf.mtext[0] = (char)b;
-		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
-		if(err)
-			return err;
-		fprintf(stderr,"Send sysstat msg\n");
-	}
-	else if(msgtype == MSG_MONITORING_WRITE){
-		buf.mtype = MSG_MONITORING_WRITE;
-		buf.mtext[0] = (char)b;
-		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
-		if(err)
-			return err;
-		fprintf(stderr,"Send syswrite msg\n");
-	}
-	else if(msgtype == MSG_MONITORING_PID){
-		buf.mtype = MSG_MONITORING_PID;
-		process_t p;
-		p.gid = getgid();
-		p.pid = getpid();
-		memcpy(buf.mtext,&p,sizeof(buf.mtext));
-		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
-		if(err)
-			return err;
-		fprintf(stderr,"Send pid msg in queue (%d)\n",qid);
-	}
-	else if(msgtype == MSG_UNMONITORING_PID){
-		buf.mtype = MSG_UNMONITORING_PID;
-		process_t p;
-		p.gid = getgid();
-		p.pid = getpid();
-		memcpy(buf.mtext,&p,sizeof(buf.mtext));
-		err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
-		if(err)
-			return err;
-		fprintf(stderr,"Send unpid msg\n");
-	}
-	return 0;
+    struct msgbuf buf;
+    int err;
+    buf.mtype = msgtype;
+    if(msgtype == MSG_MONITORING_PID || msgtype == MSG_UNMONITORING_PID){
+        process_t p;
+        p.gid = getgid();
+        p.pid = getpid();
+        memcpy(buf.mtext,&p,sizeof(buf.mtext));
+    }else
+        buf.mtext[0] = (char)b;
+    err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
+    if(err)
+      return err;
+    fprintf(stderr,"Send %ld msg\n", msgtype);
+    return 0;
 }
 
 int receivemsg(int qid, long msgtype, struct msgbuf* buf){
-	int err;
-	err = msgrcv(qid,buf,sizeof(buf->mtext),msgtype,IPC_NOWAIT);
-	
-	if(err < 0)
-		return -1;
-	return 0;
+    int err;
+    err = msgrcv(qid,buf,sizeof(buf->mtext),msgtype,IPC_NOWAIT);
+    if(err < 0)
+        return -1;
+    return 0;
 }
 
 
@@ -157,7 +83,6 @@ CTESTER_CTX CTESTER_INIT_CTX(void){
    p->shm = shm;
    p->msgid = id;
    p->ctx = (void*)p;	
-   fprintf(stderr, "Context init succeded\n");
    return p->ctx;
 }
 

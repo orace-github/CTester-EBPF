@@ -23,6 +23,7 @@ typedef enum{
 	SYS_FSTAT,
 	SYS_LSEEK,
 } CTESTER_SYSCALL;
+
 // Abstract CTester sandbox context
 typedef void* CTESTER_CTX; 
 
@@ -41,33 +42,33 @@ extern void CTESTER_SET_MONITORING(CTESTER_CTX ctx, CTESTER_SYSCALL sys, bool b)
 
 /* CTester sandbox */
 
-#define CTESTER_SANDBOX_INIT()({	\
-	int err;				\
-	CTESTER_CTX ctx = CTESTER_INIT_CTX();		\
-	if(!ctx){										\
-		perror("failed to init sandbox context");	\
-		exit(-1);									\
-	}												\
-	ctx;											\
+#define CTESTER_SANDBOX_INIT()({	                  \
+	int err;				          \
+	CTESTER_CTX ctx = CTESTER_INIT_CTX();		  \
+	if(!ctx){					  \
+		perror("failed to init sandbox context"); \
+		exit(-1);				  \
+	}					          \
+	ctx;						  \
 }) 		
 
-#define CTESTER_SANDBOX_ENTER(ctx)({	\
-	int err;					\
-	err = CTESTER_ADD_PROCESS(ctx);	\
-	if(err < 0){						\
-		perror("failed to enter sandbox");	\
-		CTESTER_RELEASE_CTX(ctx);		\
-		exit(-1);							\
-	}										\
+#define CTESTER_SANDBOX_ENTER(ctx)({	                  \
+	int err;					  \
+	err = CTESTER_ADD_PROCESS(ctx);	                  \
+	if(err < 0){					  \
+		perror("failed to enter sandbox");	  \
+		CTESTER_RELEASE_CTX(ctx);		  \
+		exit(-1);				  \
+	}						  \
 })
 
-#define CTESTER_SANDBOX_EXIT(ctx) ({	\
-	int err;					\
-	err = CTESTER_REMOVE_PROCESS(ctx);	\
-	if(err < 0){							\
-		perror("failed to exit sandbox");	\
-	}										\
-	CTESTER_RELEASE_CTX(ctx);			\
+#define CTESTER_SANDBOX_EXIT(ctx) ({	                  \
+	int err;					  \
+	err = CTESTER_REMOVE_PROCESS(ctx);	          \
+	if(err < 0){					  \
+		perror("failed to exit sandbox");	  \
+	}						  \
+	CTESTER_RELEASE_CTX(ctx);			  \
 })
 
 #endif //__CTESTER_LIB_H
