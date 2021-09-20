@@ -68,7 +68,6 @@ extern void CTESTER_SET_MONITORING(CTESTER_CTX ctx, CTESTER_SYSCALL sys, bool b)
 	if(err < 0){					  \
 		perror("failed to exit sandbox");	  \
 	}						  \
-	CTESTER_RELEASE_CTX(ctx);			  \
 })
 
 #endif //__CTESTER_LIB_H

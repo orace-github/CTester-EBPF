@@ -30,6 +30,18 @@
 #define MONITORING_LSEEK  0x40
 
 // sysV msg type
+enum{
+    sys_enable_sandbox = 1,
+    sys_disable_sandbox,
+    sys_creat,
+    sys_read,
+    sys_write,
+    sys_close,
+    sys_lseek,
+    sys_fstat,
+    sys_open
+};
+
 #define MSG_MONITORING_OPEN   0x01
 #define MSG_MONITORING_CREAT  0x02
 #define MSG_MONITORING_CLOSE  0x04
@@ -40,11 +52,13 @@
 #define MSG_MONITORING_LSEEK  0x40
 #define MSG_MONITORING_PID    0x80
 #define MSG_UNMONITORING_PID  0xf0
+#define MSG_ACK               0xff
 
 #define CTESTER_SHM_SIZE 0x1000 // 4K
 #define CTESTER_SHM_KEY 0x10	// 32
 #define CTESTER_SHM_PERM 0666	
 #define CTESTER_MSG_KEY 0x20  // 64
+#define CTESTER_ACK_KEY 0x40  // 64
 #define CTESTER_MSG_PERM  0666
 
 struct msgbuf{
@@ -52,8 +66,8 @@ struct msgbuf{
     char mtext[24];
 };
 
-int sndmsg(int qid, long msgtype, bool b /* monitoring syscall false/true */);
 int receivemsg(int qid, long msgtype, struct msgbuf* buf);
+int sndack(int ackqid, long msgtype);
 
 // basic structure to record the parameters of the last open call
 struct params_open_t {
@@ -183,7 +197,11 @@ typedef struct{
 typedef struct {
     shm_metadata* shm; // shared memory
     long msgid; // msg queue id
+    long ackqid; // ackq id
     fs_wrap_stats_t fs; // process field
+    unsigned int monitor_sys_enable_sandbox:1;
+    unsigned int monitor_sys_disable_sandbox:1;
+    unsigned int monitor_sys_creat:1;
     struct {
         unsigned int pid : 1;
         unsigned int open : 1;

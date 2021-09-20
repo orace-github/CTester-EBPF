@@ -7,6 +7,9 @@
 #include <stdio.h>
 #include "CTester.h"
 
+#define get_monitoring_state(p, s)  p->monitor_ ## s
+
+
 // CTester shared memory helper
 process_metadata* shm_malloc(shm_metadata* shm){
     // - check memory boundary
@@ -27,36 +30,71 @@ void shm_free(process_metadata* p){
     // TODO
 }
 
-int sndmsg(int qid, long msgtype, bool b){
+static int sndmsg(CTESTER_CTX ctx, int msgtype, bool b){
     struct msgbuf buf;
     int err;
-    buf.mtype = msgtype;
-    if(msgtype == MSG_MONITORING_PID || msgtype == MSG_UNMONITORING_PID){
-        process_t p;
-        p.gid = getgid();
-        p.pid = getpid();
-        memcpy(buf.mtext,&p,sizeof(buf.mtext));
+    buf.mtype = (long)msgtype;
+    if((msgtype == sys_enable_sandbox) || (msgtype == sys_disable_sandbox)){
+        process_t pm;
+        pm.gid = getgid();
+        pm.pid = getpid();
+        memcpy(buf.mtext,&pm,sizeof(buf.mtext));
+        fprintf(stderr, "here haha\n");
     }else
         buf.mtext[0] = (char)b;
-    err = msgsnd(qid,&buf,sizeof(buf.mtext),0);
-    if(err)
+    process_metadata* p = (process_metadata*)ctx;
+    err = msgsnd(p->msgid,&buf,sizeof(buf.mtext),0);
+    if(err < 0){
+      fprintf(stderr,  "Unable to send the message: %s:%ld: %ld:%ld\n", strerror(errno),p->msgid, sizeof(buf), buf.mtype );
       return err;
-    fprintf(stderr,"Send %ld msg\n", msgtype);
+    }
+    int nsleep = 0;
+    switch(msgtype){
+        case sys_enable_sandbox:
+            while(!get_monitoring_state(p, sys_enable_sandbox)){
+                if(nsleep++ > 10)
+                    return -1;
+                usleep(100000);
+                fprintf(stderr,"Send_inner %d:%p msg\n", msgtype, p);
+            }
+            break;
+        case sys_disable_sandbox:
+            while(get_monitoring_state(p, sys_enable_sandbox)){
+                if(nsleep++ > 10)
+                    return -1;
+                usleep(100000);
+                fprintf(stderr,"Send_inner 2 %d:%p msg\n", msgtype, p);
+            }
+            break;
+    }
+    fprintf(stderr,"Send_outer 2 %d:%d:%d msg\n", msgtype, sys_enable_sandbox, sys_disable_sandbox );
     return 0;
+}
+
+int sndack(int ackqid, long msgtype){
+    struct msgbuf buf;
+    int err;
+    long type = msgtype;
+    buf.mtype = MSG_ACK;
+    memcpy(&type, &buf.mtext[0], sizeof(long));
+    err =  msgsnd(ackqid,&buf,sizeof(buf.mtext),0);
+    fprintf(stderr,"Send ACK for %ld msg\n", msgtype);
+    return err;
 }
 
 int receivemsg(int qid, long msgtype, struct msgbuf* buf){
     int err;
     err = msgrcv(qid,buf,sizeof(buf->mtext),msgtype,IPC_NOWAIT);
-    if(err < 0)
+    if(err < 0){
         return -1;
+    }
     return 0;
 }
 
 
 CTESTER_CTX CTESTER_INIT_CTX(void){
    // - get shared memory
-   int shmID, id;
+   int shmID, id, id2;
    shmID = shmget(CTESTER_SHM_KEY,CTESTER_SHM_SIZE,CTESTER_SHM_PERM);
    if(shmID < 0){
       fprintf(stderr, "Unable to get SHM\n");				
@@ -73,6 +111,13 @@ CTESTER_CTX CTESTER_INIT_CTX(void){
        fprintf(stderr, "Unable to get MSG\n");
        return NULL;
    }
+   
+   id2 = msgget(CTESTER_ACK_KEY,CTESTER_MSG_PERM);
+   if(id2 < 0 ){
+       fprintf(stderr, "Unable to get ACK MSG QUEUE\n");
+       return NULL;
+   }
+   
    process_metadata* p = shm_malloc(shm);
    if(!p){
       fprintf(stderr, "Unable to allocate process_metadata in SHM\n");
@@ -82,6 +127,7 @@ CTESTER_CTX CTESTER_INIT_CTX(void){
    memset(&p->monitored,0,sizeof(p->monitored));
    p->shm = shm;
    p->msgid = id;
+   p->ackqid = id2;
    p->ctx = (void*)p;	
    return p->ctx;
 }
@@ -91,72 +137,58 @@ int CTESTER_ADD_PROCESS(CTESTER_CTX ctx){
         fprintf(stderr, "Failed: Unitialized context\n");
         return -1;
     }
-    process_metadata* p = (process_metadata*)ctx;
-    sndmsg(p->msgid,MSG_MONITORING_PID,true);
-    fprintf(stderr, "process id (%d)\n", p->monitored.pid);
-    while(!p->monitored.pid);
-    fprintf(stderr, "process was added in the context\n");
-    return 0;
+    return sndmsg(ctx,sys_enable_sandbox,true);
 }
 
-int CTESTER_REMOVE_PROCESS(CTESTER_CTX ctx)
-{
+int CTESTER_REMOVE_PROCESS(CTESTER_CTX ctx){
+    if(!ctx){ 
+        fprintf(stderr, "Failed: to release context\n");
+        return -1;
+    }
+    return sndmsg(ctx,sys_disable_sandbox,true);
+}
+
+int CTESTER_RELEASE_CTX(CTESTER_CTX ctx){
     if(!ctx) 
-		return -1;
-	// - get process pid gid
-	process_metadata* p = (process_metadata*)ctx;
-	sndmsg(p->msgid,MSG_UNMONITORING_PID,true);
-	while(p->monitored.pid);
-	return 0;
+        return -1;
+    // - get process pid gid
+    //process_metadata* p = (process_metadata*)ctx;
+    // TODO should release memory related to that context
+    return CTESTER_REMOVE_PROCESS(ctx);  
+      
 }
 
-int CTESTER_RELEASE_CTX(CTESTER_CTX ctx)
-{
-    if(!ctx) 
-		return -1;
-	// - get process pid gid
-	//process_metadata* p = (process_metadata*)ctx;
-	CTESTER_REMOVE_PROCESS(ctx);
-    
-    return 0;
-}
-
-void CTESTER_SET_MONITORING(CTESTER_CTX ctx, CTESTER_SYSCALL sys, bool b)
-{
+void CTESTER_SET_MONITORING(CTESTER_CTX ctx, CTESTER_SYSCALL sys, bool b){
     if(!ctx) 
 		return;
 	// - get process pid gid
 	process_metadata* p = (process_metadata*)ctx;
+	
 	if(sys == SYS_OPEN){
-		sndmsg(p->msgid,MSG_MONITORING_OPEN,b);
-		while(!p->monitored.open);
+		sndmsg(ctx,sys_open,b);
 	}
 	else if(sys == SYS_CLOSE){
-		sndmsg(p->msgid,MSG_MONITORING_CLOSE,b);
-		while(!p->monitored.close);
+		sndmsg(ctx,sys_close,b);
 	}
 	else if(sys == SYS_CREAT){
-		sndmsg(p->msgid,MSG_MONITORING_CREAT,b);
-		while(!p->monitored.creat);
+		sndmsg(ctx,sys_creat,b);
+		
 	}
 	else if(sys == SYS_FSTAT){
-		sndmsg(p->msgid,MSG_MONITORING_FSTAT,b);
-		while(!p->monitored.fstat);
+		sndmsg(ctx,sys_fstat,b);
 	}
 	else if(sys == SYS_LSEEK){
-		sndmsg(p->msgid,MSG_MONITORING_LSEEK,b);
-		while(!p->monitored.lseek);
+		sndmsg(ctx,sys_lseek,b);
 	}
 	else if(sys == SYS_READ){
-		sndmsg(p->msgid,MSG_MONITORING_READ,b);
-		while(!p->monitored.read);
+		sndmsg(ctx,sys_read,b);
+		
 	}
 	else if(sys == SYS_WRITE){
-		sndmsg(p->msgid,MSG_MONITORING_WRITE,b);
-		while(!p->monitored.write);
+		sndmsg(ctx,sys_write,b);
 	}
 	else if(sys == SYS_STAT){
-		sndmsg(p->msgid,MSG_MONITORING_STAT,b);
+		sndmsg(ctx,MSG_MONITORING_STAT,b);
 		while(!p->monitored.stat);
 	}
 }
