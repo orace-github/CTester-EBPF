@@ -3,6 +3,8 @@ CC = cc
 AR = ar
 CFLAGS = -c -Wall
 
+all: CTester.o libctester.a
+
 CTester.o : CTester.c
 	$(CC) $(CFLAGS)  $^ -o $@
 
