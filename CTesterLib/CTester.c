@@ -193,3 +193,27 @@ void CTESTER_SET_MONITORING(CTESTER_CTX ctx, CTESTER_SYSCALL sys, bool b){
 	}
 }
 
+void CTESTER_PRINT_STATISTICS(CTESTER_CTX ctx){
+	if(!ctx)
+		return;
+
+	process_metadata* p = (process_metadata*)ctx;
+	if(p->fs.close.called){
+		fprintf(stdout,"sys_close called:(%d)\n",p->fs.close.called);
+	}
+	if(p->fs.creat.called){
+		fprintf(stdout,"sys_creat called:(%d)\n",p->fs.creat.called);
+	}
+	if(p->fs.fstat.called){
+		fprintf(stdout,"sys_fstat called:(%d)\n",p->fs.fstat.called);
+	}
+	if(p->fs.read.called){
+		fprintf(stdout,"sys_read called:(%d)\n",p->fs.read.called);
+	}
+	if(p->fs.write.called){
+		fprintf(stdout,"sys_write called:(%d)\n",p->fs.write.called);
+	}
+	if(p->fs.open.called){
+		fprintf(stdout,"sys_open called:(%d)\n",p->fs.open.called);
+	}
+}

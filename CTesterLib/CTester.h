@@ -39,6 +39,7 @@ extern int CTESTER_RELEASE_CTX(CTESTER_CTX ctx);
 
 extern void CTESTER_SET_MONITORING(CTESTER_CTX ctx, CTESTER_SYSCALL sys, bool b);
 
+extern void CTESTER_PRINT_STATISTICS(CTESTER_CTX ctx);
 
 /* CTester sandbox */
 
