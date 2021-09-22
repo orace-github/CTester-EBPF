@@ -37,6 +37,7 @@ struct {
 SEC("tracepoint/syscalls/sys_enter_open")
 int tracepoint__syscalls__sys_enter_open(struct trace_event_raw_sys_enter* ctx){
     struct event *e;
+    struct syscall_enter_open_args *args;
     // Are we monitoring sysclose?
     if(!ctester_cfg.monitored || !ctester_cfg.monitoring_open)
          return 0;
@@ -54,6 +55,11 @@ int tracepoint__syscalls__sys_enter_open(struct trace_event_raw_sys_enter* ctx){
     e->type = SYS_ENTER_OPEN;
     e->uid = uid;
     e->pid = pid;
+    args = (struct syscall_enter_open_args *)ctx;
+    e->args.enter_open_args.__syscall_nr = args->__syscall_nr;
+    e->args.enter_open_args.mode = args->mode;
+    e->args.enter_open_args.flags = args->flags;
+    e->args.enter_open_args.filename_ptr = args->filename_ptr;
     bpf_ringbuf_submit(e, 0);
     return 0;
 }
@@ -61,6 +67,7 @@ int tracepoint__syscalls__sys_enter_open(struct trace_event_raw_sys_enter* ctx){
 SEC("tracepoint/syscalls/sys_exit_open")
 int tracepoint__syscalls__sys_exit_open(struct trace_event_raw_sys_exit* ctx){
     struct event *e;
+    struct syscall_exit_open_args* args;
     // Are we monitoring sysclose?
     if(!ctester_cfg.monitored || !ctester_cfg.monitoring_open)
         return 0;
@@ -78,6 +85,9 @@ int tracepoint__syscalls__sys_exit_open(struct trace_event_raw_sys_exit* ctx){
     e->type = SYS_EXIT_OPEN;
     e->uid = uid;
     e->pid = pid;
+    args = (struct syscall_exit_open_args*)ctx;
+    e->args.exit_open_args.__syscall_nr = args->__syscall_nr;
+    e->args.exit_open_args.ret = args->ret;
     bpf_ringbuf_submit(e, 0);
     return 0;
 }
@@ -85,7 +95,7 @@ int tracepoint__syscalls__sys_exit_open(struct trace_event_raw_sys_exit* ctx){
 SEC("tracepoint/syscalls/sys_enter_write")
 int tracepoint__syscalls__sys_enter_write(struct trace_event_raw_sys_enter* ctx){
     struct event *e;
-    
+    struct syscall_enter_write_args* args;
     // Are we monitoring sysclose?
     if(!ctester_cfg.monitored || !ctester_cfg.monitoring_write)
         return 0;
@@ -103,6 +113,11 @@ int tracepoint__syscalls__sys_enter_write(struct trace_event_raw_sys_enter* ctx)
     e->type = SYS_ENTER_WRITE;
     e->uid = uid;
     e->pid = pid;
+    args = (struct syscall_enter_write_args*)ctx;
+    e->args.enter_write_args.__syscall_nr = args->__syscall_nr;
+    e->args.enter_write_args.fd = args->fd;
+    e->args.enter_write_args.count = args->count;
+    e->args.enter_write_args.buf = args->buf;
     bpf_ringbuf_submit(e, 0);
     return 0;
 }
@@ -110,7 +125,7 @@ int tracepoint__syscalls__sys_enter_write(struct trace_event_raw_sys_enter* ctx)
 SEC("tracepoint/syscalls/sys_exit_write")
 int tracepoint__syscalls__sys_exit_write(struct trace_event_raw_sys_exit* ctx){
     struct event *e;
-    
+    struct syscall_exit_write_args* args;
     // Are we monitoring sysclose?
     if(!ctester_cfg.monitored || !ctester_cfg.monitoring_write)
        return 0;
@@ -128,6 +143,9 @@ int tracepoint__syscalls__sys_exit_write(struct trace_event_raw_sys_exit* ctx){
     e->type = SYS_EXIT_WRITE;
     e->uid = uid;
     e->pid = pid;
+    args = (struct syscall_exit_write_args*)ctx;
+    e->args.exit_write_args.ret = args->ret;
+    e->args.exit_write_args.__syscall_nr = args->__syscall_nr;
     bpf_ringbuf_submit(e, 0);
     return 0;
 }
@@ -135,7 +153,7 @@ int tracepoint__syscalls__sys_exit_write(struct trace_event_raw_sys_exit* ctx){
 SEC("tracepoint/syscalls/sys_enter_close")
 int tracepoint__syscalls__sys_enter_close(struct trace_event_raw_sys_enter* ctx){
     struct event *e;
-    
+    struct syscall_enter_close_args* args;
     // Are we monitoring sysclose?
     if(!ctester_cfg.monitored || !ctester_cfg.monitoring_close)
         return 0;
@@ -153,6 +171,9 @@ int tracepoint__syscalls__sys_enter_close(struct trace_event_raw_sys_enter* ctx)
     e->type = SYS_ENTER_CLOSE;
     e->uid = uid;
     e->pid = pid;
+    args = (struct syscall_enter_close_args*)ctx;
+    e->args.enter_close_args.fd = args->fd;
+    e->args.enter_close_args.__syscall_nr = args->__syscall_nr;
     bpf_ringbuf_submit(e, 0);
     return 0;
 }
@@ -160,7 +181,7 @@ int tracepoint__syscalls__sys_enter_close(struct trace_event_raw_sys_enter* ctx)
 SEC("tracepoint/syscalls/sys_exit_close")
 int tracepoint__syscalls__sys_exit_close(struct trace_event_raw_sys_exit* ctx){
     struct event *e;
-    
+    struct syscall_exit_close_args* args;
     // Are we monitoring sysclose?
     if(!ctester_cfg.monitored || !ctester_cfg.monitoring_close)
         return 0;
@@ -178,6 +199,9 @@ int tracepoint__syscalls__sys_exit_close(struct trace_event_raw_sys_exit* ctx){
     e->type = SYS_EXIT_CLOSE;
     e->uid = uid;
     e->pid = pid;
+    args = (struct syscall_exit_close_args*)ctx;
+    e->args.exit_close_args.ret = args->ret;
+    e->args.exit_close_args.__syscall_nr = args->__syscall_nr;
     bpf_ringbuf_submit(e, 0);
     return 0;
 }
@@ -185,6 +209,7 @@ int tracepoint__syscalls__sys_exit_close(struct trace_event_raw_sys_exit* ctx){
 SEC("tracepoint/syscalls/sys_enter_creat")
 int tracepoint__syscalls__sys_enter_creat(struct trace_event_raw_sys_enter* ctx){
     struct event *e;
+    struct syscall_enter_creat_args* args;
     // Are we monitoring syscreat?
     if(!ctester_cfg.monitored || !ctester_cfg.monitoring_creat)
         return 0;
@@ -202,6 +227,10 @@ int tracepoint__syscalls__sys_enter_creat(struct trace_event_raw_sys_enter* ctx)
     e->type = SYS_ENTER_CREAT;
     e->uid = uid;
     e->pid = pid;
+    args = (struct syscall_enter_creat_args*)ctx;
+    e->args.enter_creat_args.__syscall_nr = args->__syscall_nr;
+    e->args.enter_creat_args.mode = args->mode;
+    e->args.enter_creat_args.filename_ptr = args->filename_ptr;
     bpf_ringbuf_submit(e, 0);
     return 0;
 }
@@ -209,6 +238,7 @@ int tracepoint__syscalls__sys_enter_creat(struct trace_event_raw_sys_enter* ctx)
 SEC("tracepoint/syscalls/sys_exit_creat")
 int tracepoint__syscalls__sys_exit_creat(struct trace_event_raw_sys_exit* ctx){
     struct event *e;
+    struct syscall_exit_creat_args* args;
     // Are we monitoring syscreat?
     if(!ctester_cfg.monitored || !ctester_cfg.monitoring_creat)
         return 0;
@@ -226,6 +256,9 @@ int tracepoint__syscalls__sys_exit_creat(struct trace_event_raw_sys_exit* ctx){
     e->type = SYS_EXIT_CREAT;
     e->uid = uid;
     e->pid = pid;
+    args = (struct syscall_exit_creat_args*)ctx;
+    e->args.exit_creat_args.ret = args->ret;
+    e->args.exit_creat_args.__syscall_nr = args->__syscall_nr;
     bpf_ringbuf_submit(e, 0);
     return 0;
 }
@@ -233,6 +266,7 @@ int tracepoint__syscalls__sys_exit_creat(struct trace_event_raw_sys_exit* ctx){
 SEC("tracepoint/syscalls/sys_enter_read")
 int tracepoint__syscalls__sys_enter_read(struct trace_event_raw_sys_enter* ctx){
     struct event *e;
+    struct syscall_enter_read_args* args;
     // Are we monitoring sysread?
     if(!ctester_cfg.monitored || !ctester_cfg.monitoring_read)
         return 0;
@@ -250,6 +284,11 @@ int tracepoint__syscalls__sys_enter_read(struct trace_event_raw_sys_enter* ctx){
     e->type = SYS_ENTER_READ;
     e->uid = uid;
     e->pid = pid;
+    args = (struct syscall_enter_read_args*)ctx;
+    e->args.enter_read_args.__syscall_nr = args->__syscall_nr;
+    e->args.enter_read_args.fd = args->fd;
+    e->args.enter_read_args.buf = args->buf;
+    e->args.enter_read_args.count = args->count;
     bpf_ringbuf_submit(e, 0);
     return 0;
 }
@@ -257,6 +296,7 @@ int tracepoint__syscalls__sys_enter_read(struct trace_event_raw_sys_enter* ctx){
 SEC("tracepoint/syscalls/sys_exit_read")
 int tracepoint__syscalls__sys_exit_read(struct trace_event_raw_sys_exit* ctx){
     struct event *e;
+    struct syscall_exit_read_args* args;
     // Are we monitoring sysread?
     if(!ctester_cfg.monitored || !ctester_cfg.monitoring_read)
         return 0;
@@ -274,6 +314,9 @@ int tracepoint__syscalls__sys_exit_read(struct trace_event_raw_sys_exit* ctx){
     e->type = SYS_EXIT_READ;
     e->uid = uid;
     e->pid = pid;
+    args = (struct syscall_exit_read_args*)ctx;
+    e->args.exit_read_args.ret = args->ret;
+    e->args.exit_read_args.__syscall_nr = args->__syscall_nr;
     bpf_ringbuf_submit(e, 0);
     return 0;
 }

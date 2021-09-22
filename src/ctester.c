@@ -93,9 +93,75 @@ static int handle_event(void *ctx, void *data, size_t data_sz){
     tm = localtime(&t);
     strftime(ts, sizeof(ts), "%H:%M:%S", tm);   
     record_event(e);
+    if(e->type == SYS_ENTER_OPEN){
+        process->fs.open.called++;
+        process->fs.open.last_params.pathname = (char*)e->args.enter_open_args.filename_ptr;
+        process->fs.open.last_params.mode = e->args.enter_open_args.mode;
+        process->fs.open.last_params.flags = e->args.enter_open_args.flags;
+    }
+    else if(e->type == SYS_EXIT_OPEN){
+        process->fs.open.last_return = e->args.exit_open_args.ret;
+    }
+    else if(e->type == SYS_ENTER_WRITE){
+        process->fs.write.called++;
+        process->fs.write.last_params.buf = (void*)e->args.enter_write_args.buf;
+        process->fs.write.last_params.count = e->args.enter_write_args.count;
+        process->fs.write.last_params.fd = e->args.enter_write_args.fd;
+    }
+    else if(e->type == SYS_EXIT_WRITE){
+        process->fs.write.last_return = e->args.exit_write_args.ret;
+    }
+    else if(e->type == SYS_ENTER_READ){
+        process->fs.read.called++;
+        process->fs.read.last_params.buf = (void*)e->args.enter_read_args.buf;
+        process->fs.read.last_params.count = e->args.enter_read_args.count;
+        process->fs.read.last_params.fd = e->args.enter_read_args.fd;
+    }
+    else if(e->type == SYS_EXIT_READ){
+        process->fs.read.last_return = e->args.exit_read_args.ret;
+    }
+    else if(e->type == SYS_CLOSE){
+        process->fs.close.called++;
+        process->fs.close.last_params.fd = e->args.enter_close_args.fd;
+    }
+    else if(e->type == SYS_EXIT_CLOSE){
+        process->fs.close.last_return = e->args.exit_close_args.ret;
+    }
+    else if(e->type == SYS_CREAT){
+        process->fs.creat.called++;
+        process->fs.creat.last_params.mode = e->args.enter_creat_args.mode;
+        process->fs.creat.last_params.pathname = (char*)e->args.enter_creat_args.filename_ptr;
+    }
+    else if(e->type == SYS_EXIT_CREAT){
+        process->fs.creat.last_return = e->args.exit_creat_args.ret;
+    }
+    else if(e->type == SYS_ENTER_STAT){
+        process->fs.stat.called++;
+        process->fs.stat.last_params.buf = (struct stat*)e->args.enter_stat_args.statbuf;
+        process->fs.stat.last_params.path = (char*)e->args.enter_stat_args.filename_ptr;
+    }
+    else if(e->type == SYS_EXIT_STAT){
+        process->fs.stat.last_return = e->args.exit_stat_args.ret;
+    }
+    else if(e->type == SYS_ENTER_FSTAT){
+        process->fs.fstat.called++;
+        process->fs.fstat.last_params.buf = (struct stat*)e->args.enter_fstat_args.statbuf;
+        process->fs.fstat.last_params.fd = e->args.enter_fstat_args.fd;
+    }
+    else if(e->type == SYS_EXIT_STAT){
+        process->fs.fstat.last_return = e->args.exit_fstat_args.ret;
+    }
+    else if(e->type == SYS_ENTER_LSEEK){
+        process->fs.lseek.called++;
+        process->fs.lseek.last_params.fd = e->args.enter_lseek_args.fd;
+        process->fs.lseek.last_params.offset = e->args.enter_lseek_args.offset;
+        process->fs.lseek.last_params.whence = e->args.enter_lseek_args.whence;
+    }
+    else if(e->type == SYS_EXIT_LSEEK){
+        process->fs.lseek.last_return = e->args.exit_lseek_args.ret;
+    }
     return 0;
 }
-
 
 int main(int argc, char **argv){
     int err = init_sandbox(argc, argv); 
